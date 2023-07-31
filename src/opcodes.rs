@@ -1,7 +1,11 @@
 use crate::emulator::Chip8State;
 
 /// Data extracted from the 16-bit opcode. Uniform across all opcodes (though not used by all).
-struct OpCodeData {
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct OpCodeData {
+    /// Full 2 bytes of the opcode. Anything between the first nibble and the full 2 bytes can
+    /// contain the ID of the opcode
+    pub full_opcode: u16,
     /// Second nibble. ALWAYS used for register indexes
     pub x: u8,
     /// Third nibble, also ALWAYS used to index registers
@@ -11,11 +15,11 @@ struct OpCodeData {
     /// Second byte
     pub nn: u8,
     /// Second, third, and fourth nibble
-    pub nnn: u8,
+    pub nnn: u16,
 }
 
 /// Implemented by any struct that can read a specific Chip8 opcode
-trait OpCodeReader {
+pub trait OpCodeReader {
     /// This is the value identifying the opcode. It'll be matched against the mask bellow so be
     /// sure to set any valiable bits to 0
     fn opcode_val(&self) -> u16;
@@ -40,7 +44,7 @@ impl OpCodeReader for ClearScreen {
         0xffff
     }
 
-    fn execute(&self, state: &mut Chip8State) {}
+    fn execute(&self, _state: &mut Chip8State) {}
 }
 
 #[derive(Debug, Default, Clone)]
@@ -55,7 +59,7 @@ impl OpCodeReader for Jump {
         0xf000
     }
 
-    fn execute(&self, state: &mut Chip8State) {}
+    fn execute(&self, _state: &mut Chip8State) {}
 }
 
 #[derive(Debug, Default, Clone)]
@@ -70,7 +74,7 @@ impl OpCodeReader for SetRegister {
         0xf000
     }
 
-    fn execute(&self, state: &mut Chip8State) {}
+    fn execute(&self, _state: &mut Chip8State) {}
 }
 
 #[derive(Debug, Default, Clone)]
@@ -85,7 +89,7 @@ impl OpCodeReader for AddRegister {
         0xf000
     }
 
-    fn execute(&self, state: &mut Chip8State) {}
+    fn execute(&self, _state: &mut Chip8State) {}
 }
 
 #[derive(Debug, Default, Clone)]
@@ -100,7 +104,7 @@ impl OpCodeReader for SetIndexRegister {
         0xf000
     }
 
-    fn execute(&self, state: &mut Chip8State) {}
+    fn execute(&self, _state: &mut Chip8State) {}
 }
 
 #[derive(Debug, Default, Clone)]
@@ -115,5 +119,5 @@ impl OpCodeReader for DisplayDraw {
         0xf000
     }
 
-    fn execute(&self, state: &mut Chip8State) {}
+    fn execute(&self, _state: &mut Chip8State) {}
 }
