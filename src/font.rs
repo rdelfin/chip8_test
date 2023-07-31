@@ -44,6 +44,6 @@ impl Chip8Font {
 
     pub fn write(&self, state: &mut Chip8State) {
         // By convention, we're putting the font in address range 0x050–0x09F
-        state.memory[0x050..0x010].copy_from_slice(&self.data[..]);
+        state.memory[0x050..0x0A0].copy_from_slice(&self.data[..]);
     }
 }
