@@ -1,4 +1,5 @@
-use crate::display::Display;
+use crate::{display::Display, font::Chip8Font};
+use byteorder::{BigEndian, ByteOrder};
 use std::{collections::VecDeque, fmt};
 
 #[derive(Debug, Clone)]
@@ -24,16 +25,29 @@ pub enum Error {}
 pub type Result<T = (), E = Error> = std::result::Result<T, E>;
 
 impl EmulatedChip8 {
+    /// Creates a new, empty, uninitialised emulated chip 8
+    /// Usually you'd call this, followed by [`EmulatedChip8::write_font`],
+    /// [`EmulatedChip8::load_program`], and then regularly call [`EmulatedChip8::step`].
     pub fn new() -> EmulatedChip8 {
         EmulatedChip8 {
             state: Chip8State::new(),
         }
     }
 
+    /// Use this to write a font to the appropriate location in memory.
+    /// # Arguments
+    /// * `font` - The font data to load onto memory
+    pub fn write_font(&mut self, font: &Chip8Font) {
+        font.write(&mut self.state);
+    }
+
+    /// Runs a single step on the CPU. In this case, this practically will execute a full
+    /// fetch-decode-execute loop on the emulated CPU.
     pub fn step(&mut self) -> Result {
         Ok(())
     }
 
+    /// Returns the underlying chip8 state for inspection, use, or display.
     pub fn get_state(&self) -> &Chip8State {
         &self.state
     }

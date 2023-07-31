@@ -1,0 +1,49 @@
+use crate::emulator::Chip8State;
+
+/// Represents a standard font on a Chip8 system
+pub struct Chip8Font {
+    data: [u8; 80],
+}
+
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum Error {
+    #[error("font size has {0} bytes, expected 80")]
+    InvalidFontSize(usize),
+}
+
+impl Chip8Font {
+    pub fn new_from_bytes(data: &[u8]) -> Result<Chip8Font, Error> {
+        let mut font = Chip8Font { data: [0; 80] };
+        if data.len() != font.data.len() {
+            return Err(Error::InvalidFontSize(data.len()));
+        }
+        font.data.as_mut().copy_from_slice(data);
+        Ok(font)
+    }
+
+    pub fn new_from_default() -> Result<Chip8Font, Error> {
+        Self::new_from_bytes(&[
+            0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+            0x20, 0x60, 0x20, 0x20, 0x70, // 1
+            0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+            0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+            0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+            0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+            0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+            0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+            0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+            0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+            0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+            0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+            0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+            0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+            0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+            0xF0, 0x80, 0xF0, 0x80, 0x80, // F
+        ])
+    }
+
+    pub fn write(&self, state: &mut Chip8State) {
+        // By convention, we're putting the font in address range 0x050–0x09F
+        state.memory[0x050..0x010].copy_from_slice(&self.data[..]);
+    }
+}

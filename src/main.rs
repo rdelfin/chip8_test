@@ -1,5 +1,7 @@
 mod display;
 mod emulator;
+mod font;
+mod opcodes;
 
 use crate::emulator::EmulatedChip8;
 

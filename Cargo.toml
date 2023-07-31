@@ -6,7 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-thiserror = "1"
 anyhow = "1"
-rand = "0.8.5"
+byteorder = "1.4.3"
 expect-test = "1.4.1"
+rand = "0.8.5"
+thiserror = "1"
