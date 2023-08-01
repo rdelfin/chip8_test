@@ -3,7 +3,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Display {
     // Indexed as pixels[x][y]
-    pixels: [[bool; 32]; 64],
+    pub pixels: [[bool; 32]; 64],
 }
 
 impl Default for Display {

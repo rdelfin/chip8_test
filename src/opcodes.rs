@@ -121,3 +121,77 @@ impl OpCodeReader for DisplayDraw {
 
     fn execute(&self, _state: &mut Chip8State) {}
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use expect_test::expect;
+
+    #[test]
+    fn test_clear_screen() {
+        let cs_reader = ClearScreen;
+        let expected_screen = expect![
+            r#"
+            .----------------------------------------------------------------.
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            .----------------------------------------------------------------."#
+        ];
+
+        for _ in 0..1000 {
+            let mut state = Chip8State::new();
+            for col in state.display.pixels.iter_mut() {
+                for pixel in col.iter_mut() {
+                    *pixel = rand::random();
+                }
+            }
+            cs_reader.execute(&mut state);
+            expected_screen.assert_eq(&state.display.to_string());
+        }
+    }
+
+    #[test]
+    fn test_jump() {}
+
+    #[test]
+    fn test_set_register() {}
+
+    #[test]
+    fn test_add_register() {}
+
+    #[test]
+    fn test_set_index_register() {}
+
+    #[test]
+    fn test_display_draw() {}
+}
