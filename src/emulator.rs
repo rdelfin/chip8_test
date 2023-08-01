@@ -2,6 +2,7 @@ use crate::{
     display::Display,
     font::Chip8Font,
     opcodes::{self, OpCodeData, OpCodeReader},
+    program::Program,
 };
 use byteorder::{BigEndian, ByteOrder};
 use std::{collections::VecDeque, fmt};
@@ -54,6 +55,13 @@ impl EmulatedChip8 {
     /// * `font` - The font data to load onto memory
     pub fn write_font(&mut self, font: &Chip8Font) {
         font.write(&mut self.state);
+    }
+
+    /// Use this to write a program to the appropriate location in memory.
+    /// # Arguments
+    /// * `program` - The program data to load onto memory
+    pub fn load_program(&mut self, program: &Program) {
+        program.load(&mut self.state);
     }
 
     /// Runs a single step on the CPU. In this case, this practically will execute a full
