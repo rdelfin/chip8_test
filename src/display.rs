@@ -14,6 +14,32 @@ impl Default for Display {
     }
 }
 
+#[allow(dead_code)]
+pub struct Coordinates {
+    pub x: u8,
+    pub y: u8,
+}
+
+impl Coordinates {
+    #[allow(dead_code)]
+    pub fn new(x: u8, y: u8) -> Coordinates {
+        Coordinates { x, y }
+    }
+}
+
+impl Display {
+    #[allow(dead_code)]
+    fn flip_all(&mut self, start: Coordinates, end: Coordinates) {
+        for x in start.x..=end.x {
+            let x = x as usize;
+            for y in start.y..=end.y {
+                let y = y as usize;
+                self.pixels[x][y] = !self.pixels[x][y];
+            }
+        }
+    }
+}
+
 impl fmt::Display for Display {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Top row cover

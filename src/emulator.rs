@@ -85,24 +85,13 @@ impl EmulatedChip8 {
     }
 
     fn decode(&mut self, opcode_bytes: u16) -> OpCodeData {
-        let mut bytes = [0u8, 0u8];
-        BigEndian::write_u16(&mut bytes, opcode_bytes);
-        let bytes_u16 = [bytes[0] as u16, bytes[1] as u16];
-
-        OpCodeData {
-            full_opcode: opcode_bytes,
-            x: bytes[0] & 0x0F,
-            y: (bytes[1] & 0xF0) >> 4,
-            n: bytes[1] & 0x0F,
-            nn: bytes[1],
-            nnn: ((bytes_u16[0] & 0x000F) << 8) | bytes_u16[1],
-        }
+        OpCodeData::decode(opcode_bytes)
     }
 
     fn execute(&mut self, opcode_data: OpCodeData) -> Result<()> {
         for instruction in &self.supported_instructions {
             if opcode_data.full_opcode & instruction.opcode_mask() == instruction.opcode_val() {
-                instruction.execute(&mut self.state);
+                instruction.execute(&mut self.state, opcode_data);
                 return Ok(());
             }
         }
@@ -129,6 +118,48 @@ impl Chip8State {
             sound_timer: Register(0),
             gp_registers: [Register(0); 16],
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn with_display(mut self, display: Display) -> Chip8State {
+        self.display = display;
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn with_pc(mut self, pc: Address) -> Chip8State {
+        self.pc = pc;
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn with_stack(mut self, stack: VecDeque<Address>) -> Chip8State {
+        self.stack = stack;
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn with_index_register(mut self, index: Address) -> Chip8State {
+        self.index_register = index;
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn with_delay_timer(mut self, delay_timer: Register) -> Chip8State {
+        self.delay_timer = delay_timer;
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn with_sound_timer(mut self, sound_timer: Register) -> Chip8State {
+        self.sound_timer = sound_timer;
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn with_register(mut self, register: Register, index: u8) -> Chip8State {
+        self.gp_registers[index as usize] = register;
+        self
     }
 }
 
