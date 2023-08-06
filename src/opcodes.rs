@@ -1,4 +1,7 @@
-use crate::emulator::{Address, Chip8State, Register};
+use crate::{
+    display::Coordinates,
+    emulator::{Address, Chip8State, Register},
+};
 use byteorder::{BigEndian, ByteOrder};
 
 /// Data extracted from the 16-bit opcode. Uniform across all opcodes (though not used by all).
@@ -147,7 +150,17 @@ impl OpCodeReader for DisplayDraw {
         0xf000
     }
 
-    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {}
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        let draw_coordinates = Coordinates::new(
+            state.gp_register(opcode_data.x).0,
+            state.gp_register(opcode_data.y).0,
+        );
+        let rows: usize = opcode_data.n.into();
+        let sprite_start: usize = state.index_register.into();
+        let sprite_end = sprite_start + rows;
+        let sprite = &state.memory[sprite_start..sprite_end];
+        state.display.apply_sprite(sprite, draw_coordinates);
+    }
 }
 
 #[cfg(test)]
@@ -269,13 +282,12 @@ mod test {
     fn test_display_draw_basic() {
         let mut state = get_draw_state();
         let d_reader = DisplayDraw;
-
         // We'll draw from 56,8, resulting in: (from 52,8):
         //|    ████ ███|
         //|    █  █  ██|
-        //|████  █  ███|
-        //|█████████   |
-        //|█████████   |
+        //|████  █   ██|
+        //|██████████  |
+        //|██████████  |
         //[etc.]
         // Basic case, confirm it gets drawn
         d_reader.execute(&mut state, OpCodeData::decode(0xD233));
@@ -292,7 +304,7 @@ mod test {
             |                                                                |
             |                                                        ████ ███|
             |                                                        █  █  ██|
-            |                                                    ████  █  ███|
+            |                                                    ████  █   ██|
             |                                                    ██████████  |
             |                                                    ██████████  |
             |                                                    ██████████  |
@@ -342,7 +354,7 @@ mod test {
             |                                                                |
             |                                                        ████ ███|
             |                                                        █  █  ██|
-            |                                                    ████  █  ███|
+            |                                                    ████  █   ██|
             |                                                    ██████████  |
             |                                                    ██████████  |
             |                                                    ██████████  |
@@ -374,13 +386,14 @@ mod test {
         let mut state = get_draw_state()
             .with_register(Register(57), 2) // x coordinate
             .with_register(Register(8), 3); // y coordinate
+                                            // ██ █████  (0b11011111 = 0xDF)
 
         // We'll draw from 57,8. This causes our sprite to trunkate, resulting in: (from 52,8):
         //|     ████ ██|
         //|     █  █  █|
-        //|█████  █ ███|
-        //|█████████   |
-        //|█████████   |
+        //|█████  █  ██|
+        //|██████████  |
+        //|██████████  |
         //[etc.]
         // truncation case
         d_reader.execute(&mut state, OpCodeData::decode(0xD233));
@@ -397,7 +410,7 @@ mod test {
             |                                                                |
             |                                                         ████ ██|
             |                                                         █  █  █|
-            |                                                    █████  █ ███|
+            |                                                    █████  █  ██|
             |                                                    ██████████  |
             |                                                    ██████████  |
             |                                                    ██████████  |
