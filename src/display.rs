@@ -89,7 +89,6 @@ impl Display {
                 .try_into()
                 .expect("screen resolution does not fit in u8"),
         );
-        println!("start: {start}; end: {end}; len: {len_bits}");
         // Short-circuit if start and end are equal (or somehow flipped)
         if end <= start {
             return;
@@ -101,7 +100,6 @@ impl Display {
             let bit_in_byte = 7 - (x % 8);
             let val = (row[byte] & (1 << bit_in_byte)) != 0;
             let idx: usize = (start + x).into();
-            println!("X: {x} (idx: {idx})");
             if val {
                 full_row[idx] = !full_row[idx];
             }

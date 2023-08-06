@@ -11,4 +11,5 @@ byteorder = "1.4.3"
 clap = { version = "4.3.19", features = ["derive"] }
 expect-test = "1.4.1"
 rand = "0.8.5"
+spin_sleep = "1.1.1"
 thiserror = "1"
