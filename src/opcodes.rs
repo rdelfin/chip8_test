@@ -1,4 +1,4 @@
-use crate::emulator::Chip8State;
+use crate::emulator::{Address, Chip8State, Register};
 use byteorder::{BigEndian, ByteOrder};
 
 /// Data extracted from the 16-bit opcode. Uniform across all opcodes (though not used by all).
@@ -79,7 +79,9 @@ impl OpCodeReader for Jump {
         0xf000
     }
 
-    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {}
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        state.pc = Address(opcode_data.nnn);
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -94,7 +96,9 @@ impl OpCodeReader for SetRegister {
         0xf000
     }
 
-    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {}
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        *state.gp_register(opcode_data.x) = Register(opcode_data.nn);
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -109,7 +113,9 @@ impl OpCodeReader for AddRegister {
         0xf000
     }
 
-    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {}
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        *state.gp_register(opcode_data.x) += opcode_data.nn;
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -124,7 +130,9 @@ impl OpCodeReader for SetIndexRegister {
         0xf000
     }
 
-    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {}
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        state.index_register = Address(opcode_data.nnn);
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -217,7 +225,7 @@ mod test {
                 }
             }
             cs_reader.execute(&mut state, OpCodeData::decode(0x00e0));
-            // expected_screen.assert_eq(&state.display.to_string());
+            expected_screen.assert_eq(&state.display.to_string());
         }
     }
 
@@ -234,7 +242,7 @@ mod test {
     fn test_set_register() {
         let sr_reader = SetRegister;
         let mut state = Chip8State::new().with_register(Register(0xef), 2);
-        let mut correct_state = state.clone().with_register(Register(0x12), 2);
+        let correct_state = state.clone().with_register(Register(0x12), 2);
         sr_reader.execute(&mut state, OpCodeData::decode(0x6212));
         assert_eq!(state, correct_state);
     }
@@ -243,7 +251,7 @@ mod test {
     fn test_add_register() {
         let ar_reader = AddRegister;
         let mut state = Chip8State::new().with_register(Register(0x43), 0x0a);
-        let mut correct_state = state.clone().with_register(Register(0x7d), 0x0a);
+        let correct_state = state.clone().with_register(Register(0x7d), 0x0a);
         ar_reader.execute(&mut state, OpCodeData::decode(0x7a3a));
         assert_eq!(state, correct_state);
     }
@@ -251,9 +259,9 @@ mod test {
     #[test]
     fn test_set_index_register() {
         let sir_reader = SetIndexRegister;
-        let mut state = Chip8State::new().with_register(Register(0x43), 0x0a);
-        let mut correct_state = state.clone().with_register(Register(0x7d), 0x0a);
-        sir_reader.execute(&mut state, OpCodeData::decode(0x7a3a));
+        let mut state = Chip8State::new().with_index_register(Address(0x001));
+        let correct_state = state.clone().with_index_register(Address(0x0123));
+        sir_reader.execute(&mut state, OpCodeData::decode(0xA123));
         assert_eq!(state, correct_state);
     }
 
@@ -266,7 +274,7 @@ mod test {
             display
         };
         let mut state = Chip8State::new()
-            .with_display(display.clone())
+            .with_display(display)
             .with_index_register(Address(0x300))
             .with_register(Register(56), 2) // Stores X
             .with_register(Register(8), 3); // Stores Y

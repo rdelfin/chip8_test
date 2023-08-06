@@ -161,6 +161,10 @@ impl Chip8State {
         self.gp_registers[index as usize] = register;
         self
     }
+
+    pub fn gp_register(&mut self, index: u8) -> &mut Register {
+        &mut self.gp_registers[index as usize]
+    }
 }
 
 impl fmt::Display for Chip8State {
@@ -217,6 +221,12 @@ pub struct Register(pub u8);
 impl fmt::Display for Register {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "0x{:02x}", self.0)
+    }
+}
+
+impl std::ops::AddAssign<u8> for Register {
+    fn add_assign(&mut self, other: u8) {
+        self.0 = self.0.overflowing_add(other).0
     }
 }
 
