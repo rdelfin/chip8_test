@@ -266,8 +266,164 @@ mod test {
     }
 
     #[test]
-    fn test_display_draw() {
+    fn test_display_draw_basic() {
+        let mut state = get_draw_state();
         let d_reader = DisplayDraw;
+
+        // We'll draw from 56,8, resulting in: (from 52,8):
+        //|    ████ ███|
+        //|    █  █  ██|
+        //|████  █  ███|
+        //|█████████   |
+        //|█████████   |
+        //[etc.]
+        // Basic case, confirm it gets drawn
+        d_reader.execute(&mut state, OpCodeData::decode(0xD233));
+
+        let after_screen = expect![[r#"
+            .----------------------------------------------------------------.
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                        ████ ███|
+            |                                                        █  █  ██|
+            |                                                    ████  █  ███|
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            .----------------------------------------------------------------."#]];
+        after_screen.assert_eq(&state.display.to_string());
+    }
+
+    #[test]
+    fn test_display_draw_coordinate_wraps() {
+        let d_reader = DisplayDraw;
+        // This time we'll draw from x=248 (248 = 56 + 2*64), and y = 136 (8 + 3*32). Should draw
+        // the exact same diagram
+        let mut state = get_draw_state()
+            .with_register(Register(120), 2) // x
+            .with_register(Register(136), 3); // y
+
+        // Basic case, confirm it gets drawn
+        d_reader.execute(&mut state, OpCodeData::decode(0xD233));
+
+        let after_screen = expect![[r#"
+            .----------------------------------------------------------------.
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                        ████ ███|
+            |                                                        █  █  ██|
+            |                                                    ████  █  ███|
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            .----------------------------------------------------------------."#]];
+        after_screen.assert_eq(&state.display.to_string());
+    }
+
+    #[test]
+    fn test_display_draw_sprite_truncates() {
+        let d_reader = DisplayDraw;
+        let mut state = get_draw_state()
+            .with_register(Register(57), 2) // x coordinate
+            .with_register(Register(8), 3); // y coordinate
+
+        // We'll draw from 57,8. This causes our sprite to trunkate, resulting in: (from 52,8):
+        //|     ████ ██|
+        //|     █  █  █|
+        //|█████  █ ███|
+        //|█████████   |
+        //|█████████   |
+        //[etc.]
+        // truncation case
+        d_reader.execute(&mut state, OpCodeData::decode(0xD233));
+
+        let after_screen = expect![[r#"
+            .----------------------------------------------------------------.
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                         ████ ██|
+            |                                                         █  █  █|
+            |                                                    █████  █ ███|
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                    ██████████  |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            |                                                                |
+            .----------------------------------------------------------------."#]];
+        after_screen.assert_eq(&state.display.to_string());
+    }
+
+    fn get_draw_state() -> Chip8State {
         let display = {
             let mut display = Display::default();
             display.flip_all(Coordinates::new(52, 10), Coordinates::new(61, 19));
@@ -279,7 +435,11 @@ mod test {
             .with_register(Register(56), 2) // Stores X
             .with_register(Register(8), 3); // Stores Y
 
-        // Sprite described below
+        // Currently we have a box of 10x10 starting at 56,8
+        // The sprite we store looks like the following (remember all sprites are 8 bytes in width):
+        // ████ ███  (0b11110111 = 0xF7)
+        // █  █  ██  (0b10010011 = 0x93)
+        // ██ █████  (0b11011111 = 0xDF)
         state.memory[0x300..0x303].copy_from_slice(&[0xF7, 0x93, 0xDF]);
         // "random" data to ensure we don't read past end
         state.memory[0x303..0x306].copy_from_slice(&[0xAB, 0x41, 0x9A]);
@@ -321,57 +481,6 @@ mod test {
             .----------------------------------------------------------------."#]];
         expected_screen.assert_eq(&state.display.to_string());
 
-        // Currently we have a box of 10x10 starting at 56,8
-        // We will draw the following sprite:
-        // ████ ███  (0b11110111 = 0xF7)
-        // █  █  ██  (0b10010011 = 0x93)
-        // ██ █████  (0b11011111 = 0xDF)
-        //
-        // We'll draw from 56,8, resulting in: (from 52,8):
-        //|    ████ ███|
-        //|    █  █  ██|
-        //|████  █  ███|
-        //|█████████   |
-        //|█████████   |
-        //[etc.]
-
-        d_reader.execute(&mut state, OpCodeData::decode(0xD233));
-
-        let after_screen = expect![[r#"
-            .----------------------------------------------------------------.
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            |                                                        ████ ███|
-            |                                                        █  █  ██|
-            |                                                    ████  █  ███|
-            |                                                    ██████████  |
-            |                                                    ██████████  |
-            |                                                    ██████████  |
-            |                                                    ██████████  |
-            |                                                    ██████████  |
-            |                                                    ██████████  |
-            |                                                    ██████████  |
-            |                                                    ██████████  |
-            |                                                    ██████████  |
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            |                                                                |
-            .----------------------------------------------------------------."#]];
-        after_screen.assert_eq(&state.display.to_string());
+        state
     }
 }
