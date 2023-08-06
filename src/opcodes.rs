@@ -270,9 +270,9 @@ mod test {
             .with_register(Register(8), 3); // Stores Y
 
         // Sprite described below
-        state.memory[0x300..0x302].copy_from_slice(&[0xF7, 0x93, 0xDF]);
+        state.memory[0x300..0x303].copy_from_slice(&[0xF7, 0x93, 0xDF]);
         // "random" data to ensure we don't read past end
-        state.memory[0x303..0x305].copy_from_slice(&[0xAB, 0x41, 0x9A]);
+        state.memory[0x303..0x306].copy_from_slice(&[0xAB, 0x41, 0x9A]);
 
         let expected_screen = expect![[r#"
             .----------------------------------------------------------------.
