@@ -29,7 +29,7 @@ impl Coordinates {
 
 impl Display {
     #[allow(dead_code)]
-    fn flip_all(&mut self, start: Coordinates, end: Coordinates) {
+    pub fn flip_all(&mut self, start: Coordinates, end: Coordinates) {
         for x in start.x..=end.x {
             let x = x as usize;
             for y in start.y..=end.y {
