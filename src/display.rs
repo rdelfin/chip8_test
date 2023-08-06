@@ -38,6 +38,10 @@ impl Display {
             }
         }
     }
+
+    pub fn clear(&mut self) {
+        self.pixels[..].copy_from_slice(&[[false; 32]; 64]);
+    }
 }
 
 impl fmt::Display for Display {

@@ -62,7 +62,9 @@ impl OpCodeReader for ClearScreen {
         0xffff
     }
 
-    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {}
+    fn execute(&self, state: &mut Chip8State, _: OpCodeData) {
+        state.display.clear();
+    }
 }
 
 #[derive(Debug, Default, Clone)]
