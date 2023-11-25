@@ -105,6 +105,24 @@ impl Display {
             }
         }
     }
+
+    #[allow(dead_code)]
+    fn get_raw_display(&self) -> String {
+        let mut string = String::new();
+        for y in 0..self.pixels.len() {
+            for x in 0..self.pixels[y].len() {
+                if self.pixels[y][x] {
+                    string += "█";
+                } else {
+                    string += " ";
+                }
+            }
+            if y < self.pixels.len() - 1 {
+                string += "\n"
+            }
+        }
+        string
+    }
 }
 
 impl fmt::Display for Display {

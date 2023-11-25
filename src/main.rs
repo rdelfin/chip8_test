@@ -3,8 +3,14 @@ mod emulator;
 mod font;
 mod opcodes;
 mod program;
+mod renderer;
 
-use crate::{emulator::EmulatedChip8, font::Chip8Font, program::Program};
+use crate::{
+    emulator::EmulatedChip8,
+    font::Chip8Font,
+    program::Program,
+    renderer::{Renderer, TuiRenderer},
+};
 use clap::Parser;
 use spin_sleep::LoopHelper;
 use std::{
@@ -27,23 +33,32 @@ struct Args {
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    let period_draw = Duration::from_secs_f64(1. / 60.);
+    let mut renderer = TuiRenderer::new(period_draw)?;
 
     let mut emulated_chip8 = EmulatedChip8::new();
     // Load up font and program
     emulated_chip8.write_font(&Chip8Font::new_from_default()?);
     emulated_chip8.load_program(&Program::new_from_file(args.program)?);
 
-    let period_draw = Duration::from_secs_f64(1. / 60.);
     let mut last_draw = Instant::now();
     let mut lh = LoopHelper::builder().build_with_target_rate(args.speed);
 
     loop {
         lh.loop_start();
+
+        // Check if screen is still alive
+        if renderer.terminated() {
+            break;
+        }
+
         emulated_chip8.step()?;
         if last_draw.elapsed() > period_draw {
             last_draw = Instant::now();
-            println!("{}", emulated_chip8.get_state().display);
+            renderer.update_screen(&emulated_chip8.get_state().display)?;
         }
         lh.loop_sleep();
     }
+
+    Ok(())
 }
