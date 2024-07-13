@@ -8,12 +8,7 @@ use crossterm::{
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Layout},
-    style::Color,
-    symbols::Marker,
-    widgets::{
-        canvas::{Canvas, Rectangle},
-        Block, Borders, Paragraph,
-    },
+    widgets::{Block, Borders, Paragraph},
     Frame, Terminal,
 };
 use spin_sleep::LoopHelper;
