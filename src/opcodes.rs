@@ -331,7 +331,7 @@ pub struct BinaryXor;
 
 impl OpCodeReader for BinaryXor {
     fn opcode_val(&self) -> u16 {
-        0x8002
+        0x8003
     }
 
     fn opcode_mask(&self) -> u16 {
