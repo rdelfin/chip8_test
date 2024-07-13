@@ -6,7 +6,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{
-    backend::{Backend, CrosstermBackend},
+    backend::CrosstermBackend,
     layout::{Constraint, Layout},
     style::Color,
     symbols::Marker,
@@ -107,7 +107,7 @@ impl TuiRenderer {
         Ok(())
     }
 
-    fn draw<B: Backend>(f: &mut Frame<B>, display: &Display) {
+    fn draw(f: &mut Frame<'_>, display: &Display) {
         let size = f.size();
 
         let chunks = Layout::default()
