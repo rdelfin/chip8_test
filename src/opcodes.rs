@@ -343,6 +343,68 @@ impl OpCodeReader for BinaryXor {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct AddRegisters;
+
+impl OpCodeReader for AddRegisters {
+    fn opcode_val(&self) -> u16 {
+        0x8004
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF00F
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        let x_reg_val = state.gp_register(opcode_data.x).0;
+        let y_reg_val = state.gp_register(opcode_data.y).0;
+        let sat_add = x_reg_val.saturating_add(y_reg_val);
+        let wrap_add = x_reg_val.wrapping_add(y_reg_val);
+        state.gp_register(opcode_data.x).0 = wrap_add;
+        state.gp_register(0xF).0 = if sat_add != wrap_add { 0x1 } else { 0x0 };
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct SubtractRegisters;
+
+impl OpCodeReader for SubtractRegisters {
+    fn opcode_val(&self) -> u16 {
+        0x8005
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF00F
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        let x_reg_val = state.gp_register(opcode_data.x).0;
+        let y_reg_val = state.gp_register(opcode_data.y).0;
+        state.gp_register(opcode_data.x).0 = x_reg_val.wrapping_sub(y_reg_val);
+        state.gp_register(0xF).0 = if y_reg_val > x_reg_val { 0x0 } else { 0x1 };
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct SubtractRegistersReverse;
+
+impl OpCodeReader for SubtractRegistersReverse {
+    fn opcode_val(&self) -> u16 {
+        0x8007
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF00F
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        let x_reg_val = state.gp_register(opcode_data.x).0;
+        let y_reg_val = state.gp_register(opcode_data.y).0;
+        state.gp_register(opcode_data.x).0 = y_reg_val.wrapping_sub(x_reg_val);
+        state.gp_register(0xF).0 = if x_reg_val > y_reg_val { 0x0 } else { 0x1 };
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -352,6 +414,7 @@ mod test {
     };
     use expect_test::expect;
     use std::collections::VecDeque;
+    use test_case::test_case;
 
     #[test]
     fn test_decode() {
@@ -626,6 +689,65 @@ mod test {
             .with_register(Register(0xC6), 0x3);
         let correct_state = state.clone().with_register(Register(0x5A), 0x02);
         binary_xor_reader.execute(&mut state, OpCodeData::decode(0x8233));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test_case(0x4B, 0x17, 0x62, false, 0x00; "normal")]
+    #[test_case(0xA2, 0x7F, 0x21, true,  0x00; "overflow")]
+    #[test_case(0x4B, 0x17, 0x62, false, 0xDF; "normal_carry_override")]
+    #[test_case(0xA2, 0x7F, 0x21, true,  0xDF; "overflow_carry_override")]
+    fn test_add_registers(a: u8, b: u8, result: u8, overflows: bool, vf_value: u8) {
+        let add_registers_reader = AddRegisters;
+        let mut state = Chip8State::new()
+            .with_pc(Address(0x100))
+            .with_register(Register(a), 0x2)
+            .with_register(Register(b), 0x3)
+            .with_register(Register(vf_value), 0xf);
+        let correct_state = state
+            .clone()
+            .with_register(Register(result), 0x2)
+            .with_register(Register(if overflows { 0x01 } else { 0x00 }), 0xF);
+        add_registers_reader.execute(&mut state, OpCodeData::decode(0x8234));
+        assert_eq!(state, correct_state);
+    }
+
+    // Note here that result should be a = a - b (aka X = X - Y)
+    #[test_case(0xC3, 0x4D, 0x76, true,  0x00; "normal")]
+    #[test_case(0x11, 0xCA, 0x47, false, 0x00; "underflow")]
+    #[test_case(0xC3, 0x4D, 0x76, true,  0xDF; "normal_carry_override")]
+    #[test_case(0x11, 0xCA, 0x47, false, 0xDF; "underflow_carry_override")]
+    fn test_subtract_registers(a: u8, b: u8, result: u8, underflows: bool, vf_value: u8) {
+        let subtract_registers_reader = SubtractRegisters;
+        let mut state = Chip8State::new()
+            .with_pc(Address(0x100))
+            .with_register(Register(a), 0x2)
+            .with_register(Register(b), 0x3)
+            .with_register(Register(vf_value), 0xf);
+        let correct_state = state
+            .clone()
+            .with_register(Register(result), 0x2)
+            .with_register(Register(if underflows { 0x01 } else { 0x00 }), 0xF);
+        subtract_registers_reader.execute(&mut state, OpCodeData::decode(0x8235));
+        assert_eq!(state, correct_state);
+    }
+
+    // Note here that result should be a = b - a (aka X = Y - X)
+    #[test_case(0x4D, 0xC3, 0x76, true,  0x00; "normal")]
+    #[test_case(0xCA, 0x11, 0x47, false, 0x00; "underflow")]
+    #[test_case(0x4D, 0xC3, 0x76, true,  0xDF; "normal_carry_override")]
+    #[test_case(0xCA, 0x11, 0x47, false, 0xDF; "underflow_carry_override")]
+    fn test_subtract_registers_reverse(a: u8, b: u8, result: u8, underflows: bool, vf_value: u8) {
+        let subtract_registers_reverse_reader = SubtractRegistersReverse;
+        let mut state = Chip8State::new()
+            .with_pc(Address(0x100))
+            .with_register(Register(a), 0x2)
+            .with_register(Register(b), 0x3)
+            .with_register(Register(vf_value), 0xf);
+        let correct_state = state
+            .clone()
+            .with_register(Register(result), 0x2)
+            .with_register(Register(if underflows { 0x01 } else { 0x00 }), 0xF);
+        subtract_registers_reverse_reader.execute(&mut state, OpCodeData::decode(0x8237));
         assert_eq!(state, correct_state);
     }
 

@@ -56,6 +56,9 @@ impl EmulatedChip8 {
                 Box::new(opcodes::BinaryOr),
                 Box::new(opcodes::BinaryAnd),
                 Box::new(opcodes::BinaryXor),
+                Box::new(opcodes::AddRegisters),
+                Box::new(opcodes::SubtractRegisters),
+                Box::new(opcodes::SubtractRegistersReverse),
             ],
         }
     }
