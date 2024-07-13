@@ -199,6 +199,82 @@ impl OpCodeReader for SubroutineReturn {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct SkipConstEqual;
+
+impl OpCodeReader for SkipConstEqual {
+    fn opcode_val(&self) -> u16 {
+        0x3000
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF000
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        if state.gp_register(opcode_data.x).0 == opcode_data.nn {
+            state.pc += 2;
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct SkipConstNotEqual;
+
+impl OpCodeReader for SkipConstNotEqual {
+    fn opcode_val(&self) -> u16 {
+        0x4000
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF000
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        if state.gp_register(opcode_data.x).0 != opcode_data.nn {
+            state.pc += 2;
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct SkipRegistersEqual;
+
+impl OpCodeReader for SkipRegistersEqual {
+    fn opcode_val(&self) -> u16 {
+        0x5000
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF00F
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        if state.gp_register(opcode_data.x).0 == state.gp_register(opcode_data.y).0 {
+            state.pc += 2;
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct SkipRegistersNotEqual;
+
+impl OpCodeReader for SkipRegistersNotEqual {
+    fn opcode_val(&self) -> u16 {
+        0x9000
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF00F
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        if state.gp_register(opcode_data.x).0 != state.gp_register(opcode_data.y).0 {
+            state.pc += 2;
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -313,6 +389,128 @@ mod test {
         let correct_state = state.clone().with_index_register(Address(0x0123));
         sir_reader.execute(&mut state, OpCodeData::decode(0xA123));
         assert_eq!(state, correct_state);
+    }
+
+    #[test]
+    fn test_subroutine_call() {
+        let subroutine_call_reader = SubroutineCall;
+        let mut state = Chip8State::new().with_pc(Address(0x100));
+        let correct_state = state
+            .clone()
+            .with_pc(Address(0x123))
+            .with_stack([Address(0x100)].into_iter().collect());
+        subroutine_call_reader.execute(&mut state, OpCodeData::decode(0x2123));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test]
+    fn test_subroutine_return() {
+        let subroutine_return_reader = SubroutineReturn;
+        let mut state = Chip8State::new()
+            .with_pc(Address(0x123))
+            .with_stack([Address(0x100)].into_iter().collect());
+        let correct_state = state
+            .clone()
+            .with_pc(Address(0x100))
+            .with_stack(VecDeque::default());
+        subroutine_return_reader.execute(&mut state, OpCodeData::decode(0x00EE));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test]
+    fn test_skip_const_equal() {
+        let skip_const_equal_reader = SkipConstEqual;
+        let original_state = Chip8State::new()
+            .with_pc(Address(0x100))
+            .with_register(Register(0x5A), 0x3);
+        let skip_state = original_state.clone().with_pc(Address(0x102));
+
+        // Case with skip
+        {
+            let mut state = original_state.clone();
+            skip_const_equal_reader.execute(&mut state, OpCodeData::decode(0x335A));
+            assert_eq!(state, skip_state);
+        }
+
+        // Case without skip
+        {
+            let mut state = original_state.clone();
+            skip_const_equal_reader.execute(&mut state, OpCodeData::decode(0x334A));
+            assert_eq!(state, original_state);
+        }
+    }
+
+    #[test]
+    fn test_skip_const_not_equal() {
+        let skip_const_not_equal_reader = SkipConstNotEqual;
+        let original_state = Chip8State::new()
+            .with_pc(Address(0x100))
+            .with_register(Register(0x5A), 0x3);
+        let skip_state = original_state.clone().with_pc(Address(0x102));
+
+        // Case with skip
+        {
+            let mut state = original_state.clone();
+            skip_const_not_equal_reader.execute(&mut state, OpCodeData::decode(0x434A));
+            assert_eq!(state, skip_state);
+        }
+
+        // Case without skip
+        {
+            let mut state = original_state.clone();
+            skip_const_not_equal_reader.execute(&mut state, OpCodeData::decode(0x435A));
+            assert_eq!(state, original_state);
+        }
+    }
+
+    #[test]
+    fn test_skip_registers_equal() {
+        let skip_registers_equal_reader = SkipRegistersEqual;
+        let original_state = Chip8State::new()
+            .with_pc(Address(0x100))
+            .with_register(Register(0x5A), 0x3)
+            .with_register(Register(0x5A), 0x4)
+            .with_register(Register(0x4B), 0x5);
+        let skip_state = original_state.clone().with_pc(Address(0x102));
+
+        // Case with skip
+        {
+            let mut state = original_state.clone();
+            skip_registers_equal_reader.execute(&mut state, OpCodeData::decode(0x5340));
+            assert_eq!(state, skip_state);
+        }
+
+        // Case without skip
+        {
+            let mut state = original_state.clone();
+            skip_registers_equal_reader.execute(&mut state, OpCodeData::decode(0x5350));
+            assert_eq!(state, original_state);
+        }
+    }
+
+    #[test]
+    fn test_skip_registers_not_equal() {
+        let skip_registers_not_equal_reader = SkipRegistersNotEqual;
+        let original_state = Chip8State::new()
+            .with_pc(Address(0x100))
+            .with_register(Register(0x5A), 0x3)
+            .with_register(Register(0x5A), 0x4)
+            .with_register(Register(0x4B), 0x5);
+        let skip_state = original_state.clone().with_pc(Address(0x102));
+
+        // Case with skip
+        {
+            let mut state = original_state.clone();
+            skip_registers_not_equal_reader.execute(&mut state, OpCodeData::decode(0x9350));
+            assert_eq!(state, skip_state);
+        }
+
+        // Case without skip
+        {
+            let mut state = original_state.clone();
+            skip_registers_not_equal_reader.execute(&mut state, OpCodeData::decode(0x9340));
+            assert_eq!(state, original_state);
+        }
     }
 
     #[test]
@@ -532,31 +730,5 @@ mod test {
         expected_screen.assert_eq(&state.display.to_string());
 
         state
-    }
-
-    #[test]
-    fn test_subroutine_call() {
-        let subroutine_call_reader = SubroutineCall;
-        let mut state = Chip8State::new().with_pc(Address(0x100));
-        let correct_state = state
-            .clone()
-            .with_pc(Address(0x123))
-            .with_stack([Address(0x100)].into_iter().collect());
-        subroutine_call_reader.execute(&mut state, OpCodeData::decode(0x2123));
-        assert_eq!(state, correct_state);
-    }
-
-    #[test]
-    fn test_subroutine_return() {
-        let subroutine_return_reader = SubroutineReturn;
-        let mut state = Chip8State::new()
-            .with_pc(Address(0x123))
-            .with_stack([Address(0x100)].into_iter().collect());
-        let correct_state = state
-            .clone()
-            .with_pc(Address(0x100))
-            .with_stack(VecDeque::default());
-        subroutine_return_reader.execute(&mut state, OpCodeData::decode(0x00EE));
-        assert_eq!(state, correct_state);
     }
 }
