@@ -88,9 +88,9 @@ impl OpCodeReader for Jump {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct SetRegister;
+pub struct SetRegisterConst;
 
-impl OpCodeReader for SetRegister {
+impl OpCodeReader for SetRegisterConst {
     fn opcode_val(&self) -> u16 {
         0x6000
     }
@@ -105,9 +105,9 @@ impl OpCodeReader for SetRegister {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct AddRegister;
+pub struct AddRegisterConst;
 
-impl OpCodeReader for AddRegister {
+impl OpCodeReader for AddRegisterConst {
     fn opcode_val(&self) -> u16 {
         0x7000
     }
@@ -365,8 +365,8 @@ mod test {
     }
 
     #[test]
-    fn test_set_register() {
-        let sr_reader = SetRegister;
+    fn test_set_register_const() {
+        let sr_reader = SetRegisterConst;
         let mut state = Chip8State::new().with_register(Register(0xef), 2);
         let correct_state = state.clone().with_register(Register(0x12), 2);
         sr_reader.execute(&mut state, OpCodeData::decode(0x6212));
@@ -374,8 +374,8 @@ mod test {
     }
 
     #[test]
-    fn test_add_register() {
-        let ar_reader = AddRegister;
+    fn test_add_register_const() {
+        let ar_reader = AddRegisterConst;
         let mut state = Chip8State::new().with_register(Register(0x43), 0x0a);
         let correct_state = state.clone().with_register(Register(0x7d), 0x0a);
         ar_reader.execute(&mut state, OpCodeData::decode(0x7a3a));

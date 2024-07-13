@@ -42,8 +42,8 @@ impl EmulatedChip8 {
             supported_instructions: vec![
                 Box::new(opcodes::ClearScreen),
                 Box::new(opcodes::Jump),
-                Box::new(opcodes::SetRegister),
-                Box::new(opcodes::AddRegister),
+                Box::new(opcodes::SetRegisterConst),
+                Box::new(opcodes::AddRegisterConst),
                 Box::new(opcodes::SetIndexRegister),
                 Box::new(opcodes::DisplayDraw),
                 Box::new(opcodes::SubroutineCall),
