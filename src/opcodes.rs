@@ -405,6 +405,46 @@ impl OpCodeReader for SubtractRegistersReverse {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct ShiftRegisterRight;
+
+impl OpCodeReader for ShiftRegisterRight {
+    fn opcode_val(&self) -> u16 {
+        0x8006
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF00F
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        let x_reg = state.gp_register(opcode_data.x);
+        let removed_bit = x_reg.0 & 0x01;
+        x_reg.0 >>= 1;
+        state.gp_register(0xF).0 = removed_bit;
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct ShiftRegisterLeft;
+
+impl OpCodeReader for ShiftRegisterLeft {
+    fn opcode_val(&self) -> u16 {
+        0x800E
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF00F
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        let x_reg = state.gp_register(opcode_data.x);
+        let removed_bit = if (x_reg.0 & 0x80) == 0 { 0x00 } else { 0x01 };
+        x_reg.0 <<= 1;
+        state.gp_register(0xF).0 = removed_bit;
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -748,6 +788,40 @@ mod test {
             .with_register(Register(result), 0x2)
             .with_register(Register(if underflows { 0x01 } else { 0x00 }), 0xF);
         subtract_registers_reverse_reader.execute(&mut state, OpCodeData::decode(0x8237));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test_case(0x9C,  0x4E, false, 0x00;  "normal")]
+    #[test_case(0x59,  0x2C, true,  0x00;  "bit_shifted")]
+    #[test_case(0x9C,  0x4E, false, 0xDF;  "normal_shift_override")]
+    #[test_case(0x59,  0x2C, true,  0xDF;  "bit_shifted_shift_override")]
+    fn test_shift_register_right(val: u8, result: u8, bit_shifted: bool, vf_value: u8) {
+        let shift_register_right_reader = ShiftRegisterRight;
+        let mut state = Chip8State::new()
+            .with_register(Register(val), 0x7)
+            .with_register(Register(vf_value), 0xf);
+        let correct_state = state
+            .clone()
+            .with_register(Register(result), 0x7)
+            .with_register(Register(if bit_shifted { 0x01 } else { 0x00 }), 0xF);
+        shift_register_right_reader.execute(&mut state, OpCodeData::decode(0x8706));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test_case(0x59, 0xB2, false, 0x00;  "normal")]
+    #[test_case(0x9C, 0x38, true,  0x00;  "bit_shifted")]
+    #[test_case(0x59, 0xB2, false, 0xDF;  "normal_shift_override")]
+    #[test_case(0x9C, 0x38, true,  0xDF;  "bit_shifted_shift_override")]
+    fn test_shift_register_left(val: u8, result: u8, bit_shifted: bool, vf_value: u8) {
+        let shift_register_left_reader = ShiftRegisterLeft;
+        let mut state = Chip8State::new()
+            .with_register(Register(val), 0x7)
+            .with_register(Register(vf_value), 0xf);
+        let correct_state = state
+            .clone()
+            .with_register(Register(result), 0x7)
+            .with_register(Register(if bit_shifted { 0x01 } else { 0x00 }), 0xF);
+        shift_register_left_reader.execute(&mut state, OpCodeData::decode(0x870E));
         assert_eq!(state, correct_state);
     }
 

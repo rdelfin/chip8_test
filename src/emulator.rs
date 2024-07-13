@@ -59,6 +59,8 @@ impl EmulatedChip8 {
                 Box::new(opcodes::AddRegisters),
                 Box::new(opcodes::SubtractRegisters),
                 Box::new(opcodes::SubtractRegistersReverse),
+                Box::new(opcodes::ShiftRegisterRight),
+                Box::new(opcodes::ShiftRegisterLeft),
             ],
         }
     }
