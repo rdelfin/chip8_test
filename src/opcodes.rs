@@ -275,6 +275,74 @@ impl OpCodeReader for SkipRegistersNotEqual {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct SetRegisterRegister;
+
+impl OpCodeReader for SetRegisterRegister {
+    fn opcode_val(&self) -> u16 {
+        0x8000
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF00F
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        state.gp_register(opcode_data.x).0 = state.gp_register(opcode_data.y).0;
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct BinaryOr;
+
+impl OpCodeReader for BinaryOr {
+    fn opcode_val(&self) -> u16 {
+        0x8001
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF00F
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        state.gp_register(opcode_data.x).0 |= state.gp_register(opcode_data.y).0;
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct BinaryAnd;
+
+impl OpCodeReader for BinaryAnd {
+    fn opcode_val(&self) -> u16 {
+        0x8002
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF00F
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        state.gp_register(opcode_data.x).0 &= state.gp_register(opcode_data.y).0;
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct BinaryXor;
+
+impl OpCodeReader for BinaryXor {
+    fn opcode_val(&self) -> u16 {
+        0x8002
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF00F
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        state.gp_register(opcode_data.x).0 ^= state.gp_register(opcode_data.y).0;
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -511,6 +579,54 @@ mod test {
             skip_registers_not_equal_reader.execute(&mut state, OpCodeData::decode(0x9340));
             assert_eq!(state, original_state);
         }
+    }
+
+    #[test]
+    fn test_set_register_register() {
+        let set_register_register_reader = SetRegisterRegister;
+        let mut state = Chip8State::new()
+            .with_pc(Address(0x100))
+            .with_register(Register(0x9C), 0x2)
+            .with_register(Register(0xC6), 0x3);
+        let correct_state = state.clone().with_register(Register(0xC6), 0x02);
+        set_register_register_reader.execute(&mut state, OpCodeData::decode(0x8230));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test]
+    fn test_binary_or() {
+        let binary_or_reader = BinaryOr;
+        let mut state = Chip8State::new()
+            .with_pc(Address(0x100))
+            .with_register(Register(0x9C), 0x2)
+            .with_register(Register(0xC6), 0x3);
+        let correct_state = state.clone().with_register(Register(0xDE), 0x02);
+        binary_or_reader.execute(&mut state, OpCodeData::decode(0x8231));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test]
+    fn test_binary_and() {
+        let binary_and_reader = BinaryAnd;
+        let mut state = Chip8State::new()
+            .with_pc(Address(0x100))
+            .with_register(Register(0x9C), 0x2)
+            .with_register(Register(0xC6), 0x3);
+        let correct_state = state.clone().with_register(Register(0x84), 0x02);
+        binary_and_reader.execute(&mut state, OpCodeData::decode(0x8232));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test]
+    fn test_binary_xor() {
+        let binary_xor_reader = BinaryXor;
+        let mut state = Chip8State::new()
+            .with_pc(Address(0x100))
+            .with_register(Register(0x9C), 0x2)
+            .with_register(Register(0xC6), 0x3);
+        let correct_state = state.clone().with_register(Register(0x5A), 0x02);
+        binary_xor_reader.execute(&mut state, OpCodeData::decode(0x8233));
+        assert_eq!(state, correct_state);
     }
 
     #[test]
