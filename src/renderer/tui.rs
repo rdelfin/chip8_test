@@ -12,7 +12,7 @@ use ratatui::{
     symbols::Marker,
     widgets::{
         canvas::{Canvas, Rectangle},
-        Block, Borders,
+        Block, Borders, Paragraph,
     },
     Frame, Terminal,
 };
@@ -108,6 +108,8 @@ impl TuiRenderer {
     }
 
     fn draw(f: &mut Frame<'_>, display: &Display) {
+        let display_str = display_to_str(display);
+
         let size = f.size();
 
         let chunks = Layout::default()
@@ -121,30 +123,11 @@ impl TuiRenderer {
             )
             .split(size);
 
-        let canvas = Canvas::default()
-            .block(
-                Block::default()
-                    .title("Chip 8 Display")
-                    .borders(Borders::ALL),
-            )
-            .marker(Marker::Block)
-            .paint(|ctx| {
-                for y in 0..display.pixels.len() {
-                    for x in 0..display.pixels[y].len() {
-                        if display.pixels[y][x] {
-                            ctx.draw(&Rectangle {
-                                x: x as f64,
-                                y: -(y as f64),
-                                width: 1.,
-                                height: 1.,
-                                color: Color::White,
-                            })
-                        }
-                    }
-                }
-            })
-            .x_bounds([0.0, 64.0])
-            .y_bounds([-32.0, 0.0]);
+        let canvas = Paragraph::new(display_str).block(
+            Block::default()
+                .title("Chip 8 Display")
+                .borders(Borders::ALL),
+        );
         f.render_widget(canvas, chunks[1]);
     }
 
@@ -163,6 +146,26 @@ impl TuiRenderer {
             .context("unable to switch to main screen")?;
         Ok(())
     }
+}
+
+fn display_to_str(display: &Display) -> String {
+    let mut display_str = String::new();
+    // Every char will encode two vertical pixels, so we step by 2 in y
+    for y_idx in (0..display.pixels.len()).step_by(2) {
+        for x_idx in 0..display.pixels[y_idx].len() {
+            display_str += match (
+                display.pixels[y_idx][x_idx],
+                display.pixels[y_idx + 1][x_idx],
+            ) {
+                (false, false) => " ",
+                (true, false) => "▀",
+                (false, true) => "▄",
+                (true, true) => "█",
+            };
+        }
+        display_str += "\n";
+    }
+    display_str
 }
 
 impl Drop for TuiRenderer {
