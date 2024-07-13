@@ -46,6 +46,8 @@ impl EmulatedChip8 {
                 Box::new(opcodes::AddRegister),
                 Box::new(opcodes::SetIndexRegister),
                 Box::new(opcodes::DisplayDraw),
+                Box::new(opcodes::SubroutineCall),
+                Box::new(opcodes::SubroutineReturn),
             ],
         }
     }

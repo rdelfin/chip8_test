@@ -163,6 +163,42 @@ impl OpCodeReader for DisplayDraw {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct SubroutineCall;
+
+impl OpCodeReader for SubroutineCall {
+    fn opcode_val(&self) -> u16 {
+        0x2000
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xf000
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        state.stack.push_back(state.pc);
+        state.pc = Address(opcode_data.nnn);
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct SubroutineReturn;
+
+impl OpCodeReader for SubroutineReturn {
+    fn opcode_val(&self) -> u16 {
+        0x00EE
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xFFFF
+    }
+
+    fn execute(&self, state: &mut Chip8State, _opcode_data: OpCodeData) {
+        let return_address = state.stack.pop_back().expect("no elements to pop");
+        state.pc = return_address;
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -171,6 +207,7 @@ mod test {
         emulator::{Address, Register},
     };
     use expect_test::expect;
+    use std::collections::VecDeque;
 
     #[test]
     fn test_decode() {
@@ -495,5 +532,31 @@ mod test {
         expected_screen.assert_eq(&state.display.to_string());
 
         state
+    }
+
+    #[test]
+    fn test_subroutine_call() {
+        let subroutine_call_reader = SubroutineCall;
+        let mut state = Chip8State::new().with_pc(Address(0x100));
+        let correct_state = state
+            .clone()
+            .with_pc(Address(0x123))
+            .with_stack([Address(0x100)].into_iter().collect());
+        subroutine_call_reader.execute(&mut state, OpCodeData::decode(0x2123));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test]
+    fn test_subroutine_return() {
+        let subroutine_return_reader = SubroutineReturn;
+        let mut state = Chip8State::new()
+            .with_pc(Address(0x123))
+            .with_stack([Address(0x100)].into_iter().collect());
+        let correct_state = state
+            .clone()
+            .with_pc(Address(0x100))
+            .with_stack(VecDeque::default());
+        subroutine_return_reader.execute(&mut state, OpCodeData::decode(0x00EE));
+        assert_eq!(state, correct_state);
     }
 }
