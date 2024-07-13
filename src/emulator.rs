@@ -48,6 +48,14 @@ impl EmulatedChip8 {
                 Box::new(opcodes::DisplayDraw),
                 Box::new(opcodes::SubroutineCall),
                 Box::new(opcodes::SubroutineReturn),
+                Box::new(opcodes::SkipConstEqual),
+                Box::new(opcodes::SkipConstNotEqual),
+                Box::new(opcodes::SkipRegistersEqual),
+                Box::new(opcodes::SkipRegistersNotEqual),
+                Box::new(opcodes::SetRegisterRegister),
+                Box::new(opcodes::BinaryOr),
+                Box::new(opcodes::BinaryAnd),
+                Box::new(opcodes::BinaryXor),
             ],
         }
     }
