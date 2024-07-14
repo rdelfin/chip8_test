@@ -462,6 +462,23 @@ impl OpCodeReader for JumpOffset {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct Random;
+
+impl OpCodeReader for Random {
+    fn opcode_val(&self) -> u16 {
+        0xC000
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF000
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        state.gp_register(opcode_data.x).0 = rand::random::<u8>() & opcode_data.nn;
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
