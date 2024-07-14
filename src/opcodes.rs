@@ -479,6 +479,91 @@ impl OpCodeReader for Random {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct SkipIfKey;
+
+impl OpCodeReader for SkipIfKey {
+    fn opcode_val(&self) -> u16 {
+        0xE09E
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF0FF
+    }
+
+    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {
+        // Currently does nothing
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct SkipIfNotKey;
+
+impl OpCodeReader for SkipIfNotKey {
+    fn opcode_val(&self) -> u16 {
+        0xE0A1
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF0FF
+    }
+
+    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {
+        // Currently does nothing
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct ReadDelayTimer;
+
+impl OpCodeReader for ReadDelayTimer {
+    fn opcode_val(&self) -> u16 {
+        0xF007
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF0FF
+    }
+
+    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {
+        unimplemented!();
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct SetDelayTimer;
+
+impl OpCodeReader for SetDelayTimer {
+    fn opcode_val(&self) -> u16 {
+        0xF015
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF0FF
+    }
+
+    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {
+        unimplemented!();
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct SetSoundTimer;
+
+impl OpCodeReader for SetSoundTimer {
+    fn opcode_val(&self) -> u16 {
+        0xF018
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF0FF
+    }
+
+    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {
+        unimplemented!();
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

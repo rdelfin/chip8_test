@@ -63,6 +63,11 @@ impl EmulatedChip8 {
                 Box::new(opcodes::ShiftRegisterLeft),
                 Box::new(opcodes::JumpOffset),
                 Box::new(opcodes::Random),
+                Box::new(opcodes::SkipIfKey),
+                Box::new(opcodes::SkipIfNotKey),
+                Box::new(opcodes::ReadDelayTimer),
+                Box::new(opcodes::SetDelayTimer),
+                Box::new(opcodes::SetSoundTimer),
             ],
         }
     }
