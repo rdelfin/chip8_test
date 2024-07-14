@@ -601,6 +601,23 @@ impl OpCodeReader for GetKey {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct ReadFontCharacter;
+
+impl OpCodeReader for ReadFontCharacter {
+    fn opcode_val(&self) -> u16 {
+        0xF029
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF0FF
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        state.index_register.0 = 0x50 + (u16::from(state.gp_register(opcode_data.x).0) * 0x5);
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -1031,6 +1048,17 @@ mod test {
             .with_index_register(Address(result))
             .with_register(Register(if overflows { 0x1 } else { 0x0 }), 0xF);
         add_index_register_reader.execute(&mut state, OpCodeData::decode(0xFA1E));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test]
+    fn test_read_font_character() {
+        let read_font_character_reader = ReadFontCharacter;
+        let mut state = Chip8State::new().with_register(Register(0x7), 0xB);
+        // We expect our font to be loaded starting at address 0x50, and each "character" is 5
+        // bytes long, so 0x50 + (0x7 * 0x5) = 0x73
+        let correct_state = state.clone().with_index_register(Address(0x073));
+        read_font_character_reader.execute(&mut state, OpCodeData::decode(0xFB29));
         assert_eq!(state, correct_state);
     }
 

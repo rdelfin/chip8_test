@@ -70,6 +70,7 @@ impl EmulatedChip8 {
                 Box::new(opcodes::SetSoundTimer),
                 Box::new(opcodes::AddIndexRegister),
                 Box::new(opcodes::GetKey),
+                Box::new(opcodes::ReadFontCharacter),
             ],
         }
     }
