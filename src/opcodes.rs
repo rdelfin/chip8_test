@@ -564,6 +564,25 @@ impl OpCodeReader for SetSoundTimer {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct AddIndexRegister;
+
+impl OpCodeReader for AddIndexRegister {
+    fn opcode_val(&self) -> u16 {
+        0xF01E
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF0FF
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        state.index_register.0 += u16::from(state.gp_register(opcode_data.x).0);
+        let overflows = state.index_register.0 > 0xFFF;
+        state.gp_register(0xF).0 = if overflows { 0x1 } else { 0x0 }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -979,6 +998,21 @@ mod test {
         let mut state = Chip8State::new().with_register(Register(0x9F), 0x2);
         let correct_state = state.clone().with_sound_timer(Register(0x9F));
         set_sound_timer_reader.execute(&mut state, OpCodeData::decode(0xF218));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test_case(0x11F, 0xA5, 0x1C4,  false; "normal")]
+    #[test_case(0xFAF, 0xA5, 0x1054, true;  "overflow")]
+    fn test_add_index_register(idx_val: u16, register_val: u8, result: u16, overflows: bool) {
+        let add_index_register_reader = AddIndexRegister;
+        let mut state = Chip8State::new()
+            .with_register(Register(register_val), 0xA)
+            .with_index_register(Address(idx_val));
+        let correct_state = state
+            .clone()
+            .with_index_register(Address(result))
+            .with_register(Register(if overflows { 0x1 } else { 0x0 }), 0xF);
+        add_index_register_reader.execute(&mut state, OpCodeData::decode(0xFA1E));
         assert_eq!(state, correct_state);
     }
 

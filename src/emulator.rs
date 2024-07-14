@@ -68,6 +68,7 @@ impl EmulatedChip8 {
                 Box::new(opcodes::ReadDelayTimer),
                 Box::new(opcodes::SetDelayTimer),
                 Box::new(opcodes::SetSoundTimer),
+                Box::new(opcodes::AddIndexRegister),
             ],
         }
     }
