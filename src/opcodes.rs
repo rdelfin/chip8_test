@@ -445,6 +445,23 @@ impl OpCodeReader for ShiftRegisterLeft {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct JumpOffset;
+
+impl OpCodeReader for JumpOffset {
+    fn opcode_val(&self) -> u16 {
+        0xB000
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF000
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        state.pc = Address(state.pc.0 + opcode_data.nnn + u16::from(state.gp_register(0x0).0));
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -823,6 +840,16 @@ mod test {
             .with_register(Register(if bit_shifted { 0x01 } else { 0x00 }), 0xF);
         shift_register_left_reader.execute(&mut state, OpCodeData::decode(0x870E));
         assert_eq!(state, correct_state);
+    }
+
+    #[test]
+    fn test_jump_offset() {
+        let jump_offset_reader = JumpOffset;
+        let mut state = Chip8State::new()
+            .with_pc(Address(0x100))
+            .with_register(Register(0x12), 0x0);
+        let correct_state = state.clone().with_pc(Address(0x266));
+        jump_offset_reader.execute(&mut state, OpCodeData::decode(0xB154))
     }
 
     #[test]
