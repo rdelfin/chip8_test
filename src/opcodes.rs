@@ -525,8 +525,8 @@ impl OpCodeReader for ReadDelayTimer {
         0xF0FF
     }
 
-    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {
-        unimplemented!();
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        state.gp_register(opcode_data.x).0 = state.delay_timer.0;
     }
 }
 
@@ -542,8 +542,8 @@ impl OpCodeReader for SetDelayTimer {
         0xF0FF
     }
 
-    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {
-        unimplemented!();
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        state.delay_timer.0 = state.gp_register(opcode_data.x).0;
     }
 }
 
@@ -559,8 +559,8 @@ impl OpCodeReader for SetSoundTimer {
         0xF0FF
     }
 
-    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {
-        unimplemented!();
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        state.sound_timer.0 = state.gp_register(opcode_data.x).0;
     }
 }
 
@@ -951,7 +951,35 @@ mod test {
             .with_pc(Address(0x100))
             .with_register(Register(0x12), 0x0);
         let correct_state = state.clone().with_pc(Address(0x266));
-        jump_offset_reader.execute(&mut state, OpCodeData::decode(0xB154))
+        jump_offset_reader.execute(&mut state, OpCodeData::decode(0xB154));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test]
+    fn test_read_delay_timer() {
+        let read_delay_timer_reader = ReadDelayTimer;
+        let mut state = Chip8State::new().with_delay_timer(Register(0x9F));
+        let correct_state = state.clone().with_register(Register(0x9F), 0x5);
+        read_delay_timer_reader.execute(&mut state, OpCodeData::decode(0xF507));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test]
+    fn test_set_delay_timer() {
+        let set_delay_timer_reader = SetDelayTimer;
+        let mut state = Chip8State::new().with_register(Register(0x9F), 0x4);
+        let correct_state = state.clone().with_delay_timer(Register(0x9F));
+        set_delay_timer_reader.execute(&mut state, OpCodeData::decode(0xF415));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test]
+    fn test_set_sound_timer() {
+        let set_sound_timer_reader = SetSoundTimer;
+        let mut state = Chip8State::new().with_register(Register(0x9F), 0x2);
+        let correct_state = state.clone().with_sound_timer(Register(0x9F));
+        set_sound_timer_reader.execute(&mut state, OpCodeData::decode(0xF218));
+        assert_eq!(state, correct_state);
     }
 
     #[test]
