@@ -583,6 +583,24 @@ impl OpCodeReader for AddIndexRegister {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct GetKey;
+
+impl OpCodeReader for GetKey {
+    fn opcode_val(&self) -> u16 {
+        0xF01A
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF0FF
+    }
+
+    fn execute(&self, state: &mut Chip8State, _opcode_data: OpCodeData) {
+        // Setting up to hang indefinitely
+        state.pc.0 -= 2;
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
