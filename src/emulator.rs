@@ -145,45 +145,56 @@ impl Chip8State {
         }
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn with_display(mut self, display: Display) -> Chip8State {
         self.display = display;
         self
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn with_pc(mut self, pc: Address) -> Chip8State {
         self.pc = pc;
         self
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn with_stack(mut self, stack: VecDeque<Address>) -> Chip8State {
         self.stack = stack;
         self
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn with_index_register(mut self, index: Address) -> Chip8State {
         self.index_register = index;
         self
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn with_delay_timer(mut self, delay_timer: Register) -> Chip8State {
         self.delay_timer = delay_timer;
         self
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn with_sound_timer(mut self, sound_timer: Register) -> Chip8State {
         self.sound_timer = sound_timer;
         self
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn with_register(mut self, register: Register, index: u8) -> Chip8State {
         self.gp_registers[index as usize] = register;
+        self
+    }
+
+    #[cfg(test)]
+    pub fn with_memory_set(&mut self, bytes: &[u8], start: Address) -> &mut Chip8State {
+        let byte_start = usize::from(start.0);
+        let byte_end = byte_start + bytes.len();
+        if byte_end > 0xFFF {
+            panic!("asking to write past last byte");
+        }
+        self.memory[byte_start..byte_end].copy_from_slice(bytes);
         self
     }
 
