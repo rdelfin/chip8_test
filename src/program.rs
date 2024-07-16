@@ -15,8 +15,8 @@ pub enum Error {
 
 impl Program {
     pub fn new_from_data(data: &[u8]) -> Result<Program, Error> {
-        // We only accept programs of up to 2KB
-        if data.len() > 2 * 1024 {
+        // We only accept programs of up to 8KB
+        if data.len() > 8 * 1024 {
             return Err(Error::ProgramTooLarge);
         }
 
