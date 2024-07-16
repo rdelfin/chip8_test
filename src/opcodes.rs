@@ -618,6 +618,29 @@ impl OpCodeReader for ReadFontCharacter {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct DecimalDecoding;
+
+impl OpCodeReader for DecimalDecoding {
+    fn opcode_val(&self) -> u16 {
+        0xF033
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF0FF
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        let register_val = state.gp_register(opcode_data.x).0;
+        let digits = [
+            register_val / 100,
+            (register_val % 100) / 10,
+            register_val % 10,
+        ];
+        state.with_memory_set(&digits, state.index_register);
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -1059,6 +1082,20 @@ mod test {
         // bytes long, so 0x50 + (0x7 * 0x5) = 0x73
         let correct_state = state.clone().with_index_register(Address(0x073));
         read_font_character_reader.execute(&mut state, OpCodeData::decode(0xFB29));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test_case(255, &[2, 5, 5], 0x123; "three_digits")]
+    #[test_case(13, &[0, 1, 3], 0x200; "two_digits")]
+    #[test_case(9, &[0, 0, 9], 0xDFF; "one_digit")]
+    fn test_decimal_decoding(value: u8, digits: &'static [u8; 3], address: u16) {
+        let decimal_decoding_reader = DecimalDecoding;
+        let mut state = Chip8State::new()
+            .with_register(Register(value), 0x8)
+            .with_index_register(Address(address));
+        let mut correct_state = state.clone();
+        correct_state.with_memory_set(digits, Address(address));
+        decimal_decoding_reader.execute(&mut state, OpCodeData::decode(0xF833));
         assert_eq!(state, correct_state);
     }
 

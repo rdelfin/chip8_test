@@ -71,6 +71,7 @@ impl EmulatedChip8 {
                 Box::new(opcodes::AddIndexRegister),
                 Box::new(opcodes::GetKey),
                 Box::new(opcodes::ReadFontCharacter),
+                Box::new(opcodes::DecimalDecoding),
             ],
         }
     }
@@ -187,7 +188,6 @@ impl Chip8State {
         self
     }
 
-    #[cfg(test)]
     pub fn with_memory_set(&mut self, bytes: &[u8], start: Address) -> &mut Chip8State {
         let byte_start = usize::from(start.0);
         let byte_end = byte_start + bytes.len();
