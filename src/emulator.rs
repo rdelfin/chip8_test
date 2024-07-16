@@ -188,14 +188,19 @@ impl Chip8State {
         self
     }
 
-    pub fn with_memory_set(&mut self, bytes: &[u8], start: Address) -> &mut Chip8State {
+    #[cfg(test)]
+    pub fn with_memory_set(mut self, bytes: &[u8], start: Address) -> Chip8State {
+        self.memory_set(bytes, start);
+        self
+    }
+
+    pub fn memory_set(&mut self, bytes: &[u8], start: Address) {
         let byte_start = usize::from(start.0);
         let byte_end = byte_start + bytes.len();
         if byte_end > 0xFFF {
             panic!("asking to write past last byte");
         }
         self.memory[byte_start..byte_end].copy_from_slice(bytes);
-        self
     }
 
     pub fn gp_register(&mut self, index: u8) -> &mut Register {

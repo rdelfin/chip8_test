@@ -637,7 +637,7 @@ impl OpCodeReader for DecimalDecoding {
             (register_val % 100) / 10,
             register_val % 10,
         ];
-        state.with_memory_set(&digits, state.index_register);
+        state.memory_set(&digits, state.index_register);
     }
 }
 
