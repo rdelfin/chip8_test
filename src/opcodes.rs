@@ -641,6 +641,46 @@ impl OpCodeReader for DecimalDecoding {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct StoreMemory;
+
+impl OpCodeReader for StoreMemory {
+    fn opcode_val(&self) -> u16 {
+        0xF055
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF0FF
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        let address_start = usize::from(state.index_register.0);
+        for reg in 0..=opcode_data.x {
+            state.memory[address_start + usize::from(reg)] = state.gp_register(reg).0;
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct LoadMemory;
+
+impl OpCodeReader for LoadMemory {
+    fn opcode_val(&self) -> u16 {
+        0xF065
+    }
+
+    fn opcode_mask(&self) -> u16 {
+        0xF0FF
+    }
+
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        let address_start = usize::from(state.index_register.0);
+        for reg in 0..=opcode_data.x {
+            state.gp_register(reg).0 = state.memory[address_start + usize::from(reg)];
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -1093,9 +1133,66 @@ mod test {
         let mut state = Chip8State::new()
             .with_register(Register(value), 0x8)
             .with_index_register(Address(address));
-        let mut correct_state = state.clone();
-        correct_state.with_memory_set(digits, Address(address));
+        let mut correct_state = state.clone().with_memory_set(digits, Address(address));
         decimal_decoding_reader.execute(&mut state, OpCodeData::decode(0xF833));
+        assert_eq!(state, correct_state);
+    }
+
+    const SAMPLE_DATA: &[u8] = &[
+        0xDE, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE,
+        0xFF,
+    ];
+
+    #[test_case(0x123, 0x5; "six_bytes")]
+    #[test_case(0x500, 0xF; "all_bytes")]
+    #[test_case(0xFFF, 0x0; "one_byte")]
+    fn test_store_memory(address: u16, register: u8) {
+        let store_memory_reader = StoreMemory;
+        let mut state = Chip8State::new()
+            .with_index_register(Address(address))
+            .with_register(Register(0xDE), 0x0)
+            .with_register(Register(0x11), 0x1)
+            .with_register(Register(0x22), 0x2)
+            .with_register(Register(0x33), 0x3)
+            .with_register(Register(0x44), 0x4)
+            .with_register(Register(0x55), 0x5)
+            .with_register(Register(0x66), 0x6)
+            .with_register(Register(0x77), 0x7)
+            .with_register(Register(0x88), 0x8)
+            .with_register(Register(0x99), 0x9)
+            .with_register(Register(0xAA), 0xA)
+            .with_register(Register(0xBB), 0xB)
+            .with_register(Register(0xCC), 0xC)
+            .with_register(Register(0xDD), 0xD)
+            .with_register(Register(0xEE), 0xE)
+            .with_register(Register(0xFF), 0xF);
+        let mut correct_state = state
+            .clone()
+            .with_memory_set(&SAMPLE_DATA[..=usize::from(register)], Address(address));
+        store_memory_reader.execute(
+            &mut state,
+            OpCodeData::decode(0xF055 + u16::from(register) * 0x100),
+        );
+        assert_eq!(state, correct_state);
+    }
+
+    #[test_case(0x123, 0x5; "six_bytes")]
+    #[test_case(0xFFF, 0x0; "one_byte")]
+    #[test_case(0x500, 0xF; "all_bytes")]
+    fn test_load_memory(address: u16, register: u8) {
+        let load_memory_reader = LoadMemory;
+        let mut state = Chip8State::new()
+            .with_memory_set(&SAMPLE_DATA[..=usize::from(register)], Address(address))
+            .with_index_register(Address(address));
+        let mut correct_state = state.clone();
+        for reg in 0..=register {
+            correct_state =
+                correct_state.with_register(Register(SAMPLE_DATA[usize::from(reg)]), reg);
+        }
+        load_memory_reader.execute(
+            &mut state,
+            OpCodeData::decode(0xF065 + u16::from(register) * 0x100),
+        );
         assert_eq!(state, correct_state);
     }
 

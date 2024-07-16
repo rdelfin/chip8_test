@@ -72,6 +72,8 @@ impl EmulatedChip8 {
                 Box::new(opcodes::GetKey),
                 Box::new(opcodes::ReadFontCharacter),
                 Box::new(opcodes::DecimalDecoding),
+                Box::new(opcodes::StoreMemory),
+                Box::new(opcodes::LoadMemory),
             ],
         }
     }
@@ -197,7 +199,9 @@ impl Chip8State {
     pub fn memory_set(&mut self, bytes: &[u8], start: Address) {
         let byte_start = usize::from(start.0);
         let byte_end = byte_start + bytes.len();
-        if byte_end > 0xFFF {
+        // If byte_end is *exactly* 0x1000 we can still write (as the end is one past the last
+        // element), but if we go over that we're writing past the end
+        if byte_end > 0x1000 {
             panic!("asking to write past last byte");
         }
         self.memory[byte_start..byte_end].copy_from_slice(bytes);
