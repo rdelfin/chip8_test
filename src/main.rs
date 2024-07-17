@@ -6,15 +6,21 @@ mod program;
 mod renderer;
 
 use crate::{
-    emulator::{EmulatedChip8, KeyInput},
+    emulator::EmulatedChip8,
     font::Chip8Font,
     program::Program,
     renderer::{Renderer, TuiRenderer},
 };
 use clap::Parser;
+use log::LevelFilter;
+use log4rs::{
+    append::file::FileAppender,
+    config::{Appender, Config, Root},
+    encode::pattern::PatternEncoder,
+};
 use spin_sleep::LoopHelper;
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 
@@ -29,10 +35,18 @@ struct Args {
     /// The speed at which the processor runs, in Hz
     #[arg(short, long, default_value_t = 500.)]
     speed: f64,
+
+    /// The path to log output to
+    #[arg(short, long)]
+    log_path: Option<PathBuf>,
 }
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    if let Some(log_path) = args.log_path {
+        setup_logging(&log_path)?;
+    }
+
     let period_draw = Duration::from_secs_f64(1. / 60.);
     let mut renderer = TuiRenderer::new(period_draw)?;
 
@@ -62,6 +76,20 @@ fn main() -> anyhow::Result<()> {
         }
         lh.loop_sleep();
     }
+
+    Ok(())
+}
+
+fn setup_logging<P: AsRef<Path>>(file: P) -> anyhow::Result<()> {
+    let file_appender = FileAppender::builder()
+        .encoder(Box::new(PatternEncoder::new("{d} - {m}{n}")))
+        .build(file)?;
+
+    let config = Config::builder()
+        .appender(Appender::builder().build("file", Box::new(file_appender)))
+        .build(Root::builder().appender("file").build(LevelFilter::Info))?;
+
+    log4rs::init_config(config)?;
 
     Ok(())
 }

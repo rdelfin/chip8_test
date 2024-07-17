@@ -492,8 +492,8 @@ impl OpCodeReader for SkipIfKey {
     }
 
     fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
-        let reg = state.gp_register(opcode_data.x).0;
-        if state.is_pressed(reg) {
+        let key = state.gp_register(opcode_data.x).0;
+        if state.is_pressed(key) {
             state.pc.0 += 2;
         }
     }
@@ -512,8 +512,8 @@ impl OpCodeReader for SkipIfNotKey {
     }
 
     fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
-        let reg = state.gp_register(opcode_data.x).0;
-        if !state.is_pressed(reg) {
+        let key = state.gp_register(opcode_data.x).0;
+        if !state.is_pressed(key) {
             state.pc.0 += 2;
         }
     }

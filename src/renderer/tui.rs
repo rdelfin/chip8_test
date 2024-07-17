@@ -5,6 +5,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use log::info;
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Layout},
@@ -117,6 +118,7 @@ impl TuiRenderer {
 
                     match key.code {
                         KeyCode::Esc => {
+                            info!("Got request to exit (esc pressed)");
                             stop_state.store(true, Ordering::Relaxed);
                             break;
                         }
@@ -141,6 +143,15 @@ impl TuiRenderer {
 
                     if let Some(keypad_val) = keypad_val {
                         if key.kind != KeyEventKind::Repeat {
+                            info!(
+                                "Keypad button {:#x} {}",
+                                keypad_val,
+                                if key.kind == KeyEventKind::Press {
+                                    "pressed"
+                                } else {
+                                    "released"
+                                }
+                            );
                             key_state.lock().unwrap().key_state[keypad_val] =
                                 key.kind == KeyEventKind::Press;
                         }
