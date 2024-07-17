@@ -12,7 +12,7 @@ use crate::{
     renderer::{Renderer, TuiRenderer},
 };
 use clap::Parser;
-use log::{debug, info, LevelFilter};
+use log::{debug, error, info, LevelFilter};
 use log4rs::{
     append::file::FileAppender,
     config::{Appender, Config, Root},
@@ -20,6 +20,8 @@ use log4rs::{
 };
 use spin_sleep::LoopHelper;
 use std::{
+    any::Any,
+    backtrace::Backtrace,
     path::{Path, PathBuf},
     time::{Duration, Instant},
 };
@@ -51,6 +53,22 @@ fn main() -> anyhow::Result<()> {
     if let Some(log_path) = args.log_path {
         setup_logging(log_path, args.verbose)?;
     }
+
+    std::panic::set_hook(Box::new(move |panic_info| {
+        let backtrace = Backtrace::capture();
+        let payload = payload_as_str(panic_info.payload());
+        if let Some(location) = panic_info.location() {
+            error!(
+                "panic occurred in file '{}' at line {}: {payload}",
+                location.file(),
+                location.line(),
+            );
+        } else {
+            error!("panic occured: {payload}");
+        }
+        error!("backtrace: {backtrace}");
+        std::process::exit(1);
+    }));
 
     let period_draw = Duration::from_secs_f64(1. / 60.);
     let mut renderer = TuiRenderer::new(period_draw)?;
@@ -86,6 +104,16 @@ fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn payload_as_str(payload: &dyn Any) -> &str {
+    if let Some(&s) = payload.downcast_ref::<&'static str>() {
+        s
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.as_str()
+    } else {
+        "Box<dyn Any>"
+    }
 }
 
 fn setup_logging<P: AsRef<Path>>(file: P, verbose: bool) -> anyhow::Result<()> {
