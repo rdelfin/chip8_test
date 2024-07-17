@@ -32,8 +32,9 @@ struct Args {
     #[arg(short, long)]
     program: PathBuf,
 
-    /// The speed at which the processor runs, in Hz
-    #[arg(short, long, default_value_t = 500.)]
+    /// The speed at which the processor runs, in Hz.
+    /// Default is 700 instructions/second as a rough average of real timing
+    #[arg(short, long, default_value_t = 700.)]
     speed: f64,
 
     /// The path to log output to
@@ -57,6 +58,7 @@ fn main() -> anyhow::Result<()> {
 
     let mut last_draw = Instant::now();
     let mut lh = LoopHelper::builder().build_with_target_rate(args.speed);
+    let expected_period = Duration::from_secs_f64(1. / args.speed);
 
     loop {
         lh.loop_start();
@@ -69,7 +71,7 @@ fn main() -> anyhow::Result<()> {
         // Fetch key state
         let key_input = renderer.current_key_state();
 
-        emulated_chip8.step(key_input)?;
+        emulated_chip8.step(key_input, expected_period)?;
         if last_draw.elapsed() > period_draw {
             last_draw = Instant::now();
             renderer.update_screen(&emulated_chip8.get_state().display)?;

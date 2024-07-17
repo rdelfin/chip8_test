@@ -5,7 +5,7 @@ use crate::{
     program::Program,
 };
 use byteorder::{BigEndian, ByteOrder};
-use std::{collections::VecDeque, fmt};
+use std::{collections::VecDeque, fmt, time::Duration};
 
 pub struct EmulatedChip8 {
     state: Chip8State,
@@ -20,7 +20,9 @@ pub struct Chip8State {
     pub stack: VecDeque<Address>,
     pub index_register: Address,
     pub delay_timer: Register,
+    pub since_last_delay_update: Duration,
     pub sound_timer: Register,
+    pub since_last_sound_update: Duration,
     pub gp_registers: [Register; 16],
     pub key_state: KeyInput,
 }
@@ -100,8 +102,9 @@ impl EmulatedChip8 {
 
     /// Runs a single step on the CPU. In this case, this practically will execute a full
     /// fetch-decode-execute loop on the emulated CPU. We also expect you to provide keyboard input
-    pub fn step(&mut self, key_input: KeyInput) -> Result {
+    pub fn step(&mut self, key_input: KeyInput, time_delta: Duration) -> Result {
         self.state.key_state = key_input;
+        self.update_timers(time_delta);
         let opcode_bytes = self.fetch();
         let opcode_data = self.decode(opcode_bytes);
         self.execute(opcode_data)
@@ -110,6 +113,19 @@ impl EmulatedChip8 {
     /// Returns the underlying chip8 state for inspection, use, or display.
     pub fn get_state(&self) -> &Chip8State {
         &self.state
+    }
+
+    fn update_timers(&mut self, time_delta: Duration) {
+        update_timer(
+            &mut self.state.delay_timer,
+            &mut self.state.since_last_delay_update,
+            time_delta,
+        );
+        update_timer(
+            &mut self.state.sound_timer,
+            &mut self.state.since_last_sound_update,
+            time_delta,
+        );
     }
 
     fn fetch(&mut self) -> u16 {
@@ -135,6 +151,40 @@ impl EmulatedChip8 {
     }
 }
 
+const DECREMENT_PERIOD: Duration = Duration::from_millis(17);
+
+fn update_timer(register: &mut Register, since_last_update: &mut Duration, time_delta: Duration) {
+    if register.0 > 0 {
+        // Target frequency at which we reduce is 60Hz (period ~16.67ms). To do that we need to
+        // consider two cases: time_delta > 16.67ms (in which case, we need to decrement multiple
+        // times), and time_delta < 16.67ms (in which case we need to keep track of how much time
+        // until the next time we decrement). We will handle both together by:
+        // - Adding the time delta to the time since last update
+        // - Remove decrement period from that new time since last update until we can no longer
+        // - Store back any reminder
+        // The period at which we decrement the timer is represented by `DECREMENT_PERIOD` (which
+        // we round up to 17ms for simplicity)
+
+        let mut new_since_last_update = since_last_update.clone() + time_delta;
+        while new_since_last_update > DECREMENT_PERIOD {
+            if register.0 > 1 {
+                register.0 -= 1;
+                new_since_last_update -= DECREMENT_PERIOD;
+            }
+            // Special case: if we reach 1 and need to subtract again, we should just reset
+            // `since_last_update` and stop
+            else {
+                register.0 = 0;
+                *since_last_update = Duration::default();
+                return;
+            }
+        }
+
+        // new_since_last_update will contain the reminder of the "division" we made
+        *since_last_update = new_since_last_update;
+    }
+}
+
 impl fmt::Display for EmulatedChip8 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.state)
@@ -150,7 +200,9 @@ impl Chip8State {
             stack: VecDeque::new(),
             index_register: Address(0),
             delay_timer: Register(0),
+            since_last_delay_update: Duration::default(),
             sound_timer: Register(0),
+            since_last_sound_update: Duration::default(),
             gp_registers: [Register(0); 16],
             key_state: KeyInput::default(),
         }
