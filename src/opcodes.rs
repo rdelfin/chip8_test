@@ -40,7 +40,7 @@ impl OpCodeData {
 }
 
 /// Implemented by any struct that can read a specific Chip8 opcode
-pub trait OpCodeReader {
+pub trait OpCodeReader: std::fmt::Debug {
     /// This is the value identifying the opcode. It'll be matched against the mask bellow so be
     /// sure to set any valiable bits to 0
     fn opcode_val(&self) -> u16;
@@ -514,6 +514,7 @@ impl OpCodeReader for SkipIfNotKey {
     fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
         let key = state.gp_register(opcode_data.x).0;
         if !state.is_pressed(key) {
+            log::debug!("SkipIfNotKey: skipping (key {key:#x})");
             state.pc.0 += 2;
         }
     }

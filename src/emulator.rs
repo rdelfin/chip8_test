@@ -5,6 +5,7 @@ use crate::{
     program::Program,
 };
 use byteorder::{BigEndian, ByteOrder};
+use log::debug;
 use std::{collections::VecDeque, fmt, time::Duration};
 
 pub struct EmulatedChip8 {
@@ -142,6 +143,7 @@ impl EmulatedChip8 {
     fn execute(&mut self, opcode_data: OpCodeData) -> Result<()> {
         for instruction in &self.supported_instructions {
             if opcode_data.full_opcode & instruction.opcode_mask() == instruction.opcode_val() {
+                debug!("Executing instruction {instruction:?} with opcode data {opcode_data:?}; pc: {:#x}", self.state.pc.0);
                 instruction.execute(&mut self.state, opcode_data);
                 return Ok(());
             }

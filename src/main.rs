@@ -12,7 +12,7 @@ use crate::{
     renderer::{Renderer, TuiRenderer},
 };
 use clap::Parser;
-use log::LevelFilter;
+use log::{debug, info, LevelFilter};
 use log4rs::{
     append::file::FileAppender,
     config::{Appender, Config, Root},
@@ -40,12 +40,16 @@ struct Args {
     /// The path to log output to
     #[arg(short, long)]
     log_path: Option<PathBuf>,
+
+    /// Enables verbose logging (logs debug logs too)
+    #[arg(short, long)]
+    verbose: bool,
 }
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     if let Some(log_path) = args.log_path {
-        setup_logging(log_path)?;
+        setup_logging(log_path, args.verbose)?;
     }
 
     let period_draw = Duration::from_secs_f64(1. / 60.);
@@ -65,6 +69,8 @@ fn main() -> anyhow::Result<()> {
 
         // Check if screen is still alive
         if renderer.terminated() {
+            info!("terminating program");
+            debug!("final state:\n{}", emulated_chip8.get_state());
             break;
         }
 
@@ -82,14 +88,18 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn setup_logging<P: AsRef<Path>>(file: P) -> anyhow::Result<()> {
+fn setup_logging<P: AsRef<Path>>(file: P, verbose: bool) -> anyhow::Result<()> {
     let file_appender = FileAppender::builder()
         .encoder(Box::new(PatternEncoder::new("{d} - {m}{n}")))
         .build(file)?;
 
     let config = Config::builder()
         .appender(Appender::builder().build("file", Box::new(file_appender)))
-        .build(Root::builder().appender("file").build(LevelFilter::Info))?;
+        .build(Root::builder().appender("file").build(if verbose {
+            LevelFilter::Debug
+        } else {
+            LevelFilter::Info
+        }))?;
 
     log4rs::init_config(config)?;
 

@@ -20,7 +20,7 @@ use std::{
         Arc, Mutex,
     },
     thread::{self, JoinHandle},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 type CrossTerminal = Terminal<CrosstermBackend<Stdout>>;
@@ -29,7 +29,7 @@ pub struct TuiRenderer {
     terminal: Arc<Mutex<CrossTerminal>>,
     render_jh: Option<JoinHandle<anyhow::Result<()>>>,
     event_jh: Option<JoinHandle<anyhow::Result<()>>>,
-    key_state: Arc<Mutex<KeyInput>>,
+    key_state: Arc<Mutex<(KeyInput, [Instant; 0x10])>>,
     display: Arc<Mutex<Display>>,
     stop_state: Arc<AtomicBool>,
 }
@@ -60,7 +60,8 @@ impl Renderer for TuiRenderer {
         let display: Arc<Mutex<Display>> = Arc::default();
         let display_clone = display.clone();
 
-        let key_state: Arc<Mutex<KeyInput>> = Arc::default();
+        let key_state: Arc<Mutex<(KeyInput, [Instant; 0x10])>> =
+            Arc::new(Mutex::new((KeyInput::default(), [Instant::now(); 0x10])));
         let key_state_clone = key_state.clone();
 
         Ok(TuiRenderer {
@@ -87,7 +88,7 @@ impl Renderer for TuiRenderer {
     }
 
     fn current_key_state(&self) -> KeyInput {
-        self.key_state.lock().unwrap().clone()
+        self.key_state.lock().unwrap().0.clone()
     }
 
     fn update_screen(&mut self, display: &Display) -> anyhow::Result<()> {
@@ -101,8 +102,10 @@ fn join_handle_finished<T>(jh: &Option<JoinHandle<T>>) -> bool {
 }
 
 impl TuiRenderer {
+    const KEY_PRESS_DURATION: Duration = Duration::from_millis(500);
+
     fn event_loop(
-        key_state: Arc<Mutex<KeyInput>>,
+        key_state: Arc<Mutex<(KeyInput, [Instant; 0x10])>>,
         stop_state: Arc<AtomicBool>,
     ) -> anyhow::Result<()> {
         const POLL_TIMEOUT: Duration = Duration::from_millis(100);
@@ -110,6 +113,16 @@ impl TuiRenderer {
         loop {
             if stop_state.load(Ordering::Relaxed) {
                 break;
+            }
+
+            // Clear out key states over the duration, since we don't get key up events
+            {
+                let mut lg = key_state.lock().unwrap();
+                for i in 0..lg.0.key_state.len() {
+                    if lg.0.key_state[i] && lg.1[i].elapsed() > Self::KEY_PRESS_DURATION {
+                        lg.0.key_state[i] = false;
+                    }
+                }
             }
 
             if event::poll(POLL_TIMEOUT).context("event poll failed")? {
@@ -142,18 +155,11 @@ impl TuiRenderer {
                     }
 
                     if let Some(keypad_val) = keypad_val {
-                        if key.kind != KeyEventKind::Repeat {
-                            info!(
-                                "Keypad button {:#x} {}",
-                                keypad_val,
-                                if key.kind == KeyEventKind::Press {
-                                    "pressed"
-                                } else {
-                                    "released"
-                                }
-                            );
-                            key_state.lock().unwrap().key_state[keypad_val] =
-                                key.kind == KeyEventKind::Press;
+                        if key.kind == KeyEventKind::Press {
+                            info!("Keypad button {:#x} pressed", keypad_val);
+                            let mut lg = key_state.lock().unwrap();
+                            lg.1[keypad_val] = Instant::now();
+                            lg.0.key_state[keypad_val] = true;
                         }
                     }
                 }
