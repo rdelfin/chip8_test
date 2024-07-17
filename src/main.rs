@@ -45,7 +45,7 @@ struct Args {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     if let Some(log_path) = args.log_path {
-        setup_logging(&log_path)?;
+        setup_logging(log_path)?;
     }
 
     let period_draw = Duration::from_secs_f64(1. / 60.);

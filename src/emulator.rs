@@ -165,7 +165,7 @@ fn update_timer(register: &mut Register, since_last_update: &mut Duration, time_
         // The period at which we decrement the timer is represented by `DECREMENT_PERIOD` (which
         // we round up to 17ms for simplicity)
 
-        let mut new_since_last_update = since_last_update.clone() + time_delta;
+        let mut new_since_last_update = *since_last_update + time_delta;
         while new_since_last_update > DECREMENT_PERIOD {
             if register.0 > 1 {
                 register.0 -= 1;
