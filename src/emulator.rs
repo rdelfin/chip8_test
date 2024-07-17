@@ -22,6 +22,12 @@ pub struct Chip8State {
     pub delay_timer: Register,
     pub sound_timer: Register,
     pub gp_registers: [Register; 16],
+    pub key_state: KeyInput,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct KeyInput {
+    pub key_state: [bool; 0x10],
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -93,8 +99,9 @@ impl EmulatedChip8 {
     }
 
     /// Runs a single step on the CPU. In this case, this practically will execute a full
-    /// fetch-decode-execute loop on the emulated CPU.
-    pub fn step(&mut self) -> Result {
+    /// fetch-decode-execute loop on the emulated CPU. We also expect you to provide keyboard input
+    pub fn step(&mut self, key_input: KeyInput) -> Result {
+        self.state.key_state = key_input;
         let opcode_bytes = self.fetch();
         let opcode_data = self.decode(opcode_bytes);
         self.execute(opcode_data)
@@ -145,6 +152,7 @@ impl Chip8State {
             delay_timer: Register(0),
             sound_timer: Register(0),
             gp_registers: [Register(0); 16],
+            key_state: KeyInput::default(),
         }
     }
 
@@ -194,6 +202,15 @@ impl Chip8State {
     pub fn with_memory_set(mut self, bytes: &[u8], start: Address) -> Chip8State {
         self.memory_set(bytes, start);
         self
+    }
+
+    #[cfg(test)]
+    pub fn with_key_pressed(mut self, key: u8) -> Chip8State {
+        self.key_state.key_state[usize::from(key)] = true;
+    }
+
+    pub fn is_pressed(&self, key: u8) -> bool {
+        self.key_state.key_state[usize::from(key)]
     }
 
     pub fn memory_set(&mut self, bytes: &[u8], start: Address) {

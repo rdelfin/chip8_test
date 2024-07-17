@@ -6,7 +6,7 @@ mod program;
 mod renderer;
 
 use crate::{
-    emulator::EmulatedChip8,
+    emulator::{EmulatedChip8, KeyInput},
     font::Chip8Font,
     program::Program,
     renderer::{Renderer, TuiRenderer},
@@ -52,7 +52,7 @@ fn main() -> anyhow::Result<()> {
             break;
         }
 
-        emulated_chip8.step()?;
+        emulated_chip8.step(KeyInput::default())?;
         if last_draw.elapsed() > period_draw {
             last_draw = Instant::now();
             renderer.update_screen(&emulated_chip8.get_state().display)?;
