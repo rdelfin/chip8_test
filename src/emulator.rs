@@ -207,6 +207,7 @@ impl Chip8State {
     #[cfg(test)]
     pub fn with_key_pressed(mut self, key: u8) -> Chip8State {
         self.key_state.key_state[usize::from(key)] = true;
+        self
     }
 
     pub fn is_pressed(&self, key: u8) -> bool {
