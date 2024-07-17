@@ -1,7 +1,7 @@
-use crate::{display::Display, renderer::Renderer};
+use crate::{display::Display, emulator::KeyInput, renderer::Renderer};
 use anyhow::Context;
 use crossterm::{
-    event::{self, Event, KeyCode},
+    event::{self, Event, KeyCode, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -15,7 +15,7 @@ use spin_sleep::LoopHelper;
 use std::{
     io::Stdout,
     sync::{
-        mpsc::{self, Receiver, Sender, TryRecvError},
+        atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
     thread::{self, JoinHandle},
@@ -26,9 +26,11 @@ type CrossTerminal = Terminal<CrosstermBackend<Stdout>>;
 
 pub struct TuiRenderer {
     terminal: Arc<Mutex<CrossTerminal>>,
-    jh: Option<JoinHandle<anyhow::Result<()>>>,
+    render_jh: Option<JoinHandle<anyhow::Result<()>>>,
+    event_jh: Option<JoinHandle<anyhow::Result<()>>>,
+    key_state: Arc<Mutex<KeyInput>>,
     display: Arc<Mutex<Display>>,
-    stop_tx: Sender<()>,
+    stop_state: Arc<AtomicBool>,
 }
 
 impl Renderer for TuiRenderer {
@@ -49,23 +51,42 @@ impl Renderer for TuiRenderer {
         ));
         let terminal_clone = terminal.clone();
 
-        let (stop_tx, stop_rx) = mpsc::channel();
+        // let (stop_tx, stop_rx) = mpsc::channel();
+        let stop_state: Arc<AtomicBool> = Arc::default();
+        let stop_state_clone = stop_state.clone();
+        let stop_state_clone_2 = stop_state.clone();
 
         let display: Arc<Mutex<Display>> = Arc::default();
         let display_clone = display.clone();
 
+        let key_state: Arc<Mutex<KeyInput>> = Arc::default();
+        let key_state_clone = key_state.clone();
+
         Ok(TuiRenderer {
             terminal,
-            jh: Some(thread::spawn(move || {
-                Self::run_loop(terminal_clone, display_clone, render_period, stop_rx)
+            render_jh: Some(thread::spawn(move || {
+                Self::run_loop(
+                    terminal_clone,
+                    display_clone,
+                    render_period,
+                    stop_state_clone,
+                )
+            })),
+            event_jh: Some(thread::spawn(move || {
+                Self::event_loop(key_state_clone, stop_state_clone_2)
             })),
             display,
-            stop_tx,
+            stop_state,
+            key_state,
         })
     }
 
     fn terminated(&self) -> bool {
-        self.jh.as_ref().map(|jh| jh.is_finished()).unwrap_or(true)
+        join_handle_finished(&self.event_jh) || join_handle_finished(&self.render_jh)
+    }
+
+    fn current_key_state(&self) -> KeyInput {
+        self.key_state.lock().unwrap().clone()
     }
 
     fn update_screen(&mut self, display: &Display) -> anyhow::Result<()> {
@@ -74,19 +95,74 @@ impl Renderer for TuiRenderer {
     }
 }
 
+fn join_handle_finished<T>(jh: &Option<JoinHandle<T>>) -> bool {
+    jh.as_ref().map(|jh| jh.is_finished()).unwrap_or(true)
+}
+
 impl TuiRenderer {
+    fn event_loop(
+        key_state: Arc<Mutex<KeyInput>>,
+        stop_state: Arc<AtomicBool>,
+    ) -> anyhow::Result<()> {
+        const POLL_TIMEOUT: Duration = Duration::from_millis(100);
+
+        loop {
+            if stop_state.load(Ordering::Relaxed) {
+                break;
+            }
+
+            if event::poll(POLL_TIMEOUT).context("event poll failed")? {
+                if let Event::Key(key) = event::read().context("event read failed")? {
+                    let mut keypad_val = None;
+
+                    match key.code {
+                        KeyCode::Esc => {
+                            stop_state.store(true, Ordering::Relaxed);
+                            break;
+                        }
+                        KeyCode::Char('1') => keypad_val = Some(0x1),
+                        KeyCode::Char('2') => keypad_val = Some(0x2),
+                        KeyCode::Char('3') => keypad_val = Some(0x3),
+                        KeyCode::Char('4') => keypad_val = Some(0xC),
+                        KeyCode::Char('q') => keypad_val = Some(0x4),
+                        KeyCode::Char('w') => keypad_val = Some(0x5),
+                        KeyCode::Char('e') => keypad_val = Some(0x6),
+                        KeyCode::Char('r') => keypad_val = Some(0xD),
+                        KeyCode::Char('a') => keypad_val = Some(0x7),
+                        KeyCode::Char('s') => keypad_val = Some(0x8),
+                        KeyCode::Char('d') => keypad_val = Some(0x9),
+                        KeyCode::Char('f') => keypad_val = Some(0xE),
+                        KeyCode::Char('z') => keypad_val = Some(0xA),
+                        KeyCode::Char('x') => keypad_val = Some(0x0),
+                        KeyCode::Char('c') => keypad_val = Some(0xB),
+                        KeyCode::Char('v') => keypad_val = Some(0xF),
+                        _ => {}
+                    }
+
+                    if let Some(keypad_val) = keypad_val {
+                        if key.kind != KeyEventKind::Repeat {
+                            key_state.lock().unwrap().key_state[keypad_val] =
+                                key.kind == KeyEventKind::Press;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     fn run_loop(
         terminal: Arc<Mutex<CrossTerminal>>,
         display: Arc<Mutex<Display>>,
         render_period: Duration,
-        stop_rx: Receiver<()>,
+        stop_state: Arc<AtomicBool>,
     ) -> anyhow::Result<()> {
-        let poll_timeout = render_period / 4;
         let mut lh = LoopHelper::builder().build_with_target_rate(1. / render_period.as_secs_f32());
         loop {
             lh.loop_start();
-            // If we got a message or the other side disconnected, stop the loop
-            if matches!(stop_rx.try_recv(), Ok(_) | Err(TryRecvError::Disconnected)) {
+            // Check if the loop was stopped
+            if stop_state.load(Ordering::Relaxed) {
                 return Ok(());
             }
             {
@@ -94,12 +170,8 @@ impl TuiRenderer {
                 let mut terminal = terminal.lock().unwrap();
                 terminal.draw(|frame| Self::draw(frame, &display))?
             };
-            if Self::should_quit(poll_timeout)? {
-                break;
-            }
             lh.loop_sleep();
         }
-        Ok(())
     }
 
     fn draw(f: &mut Frame<'_>, display: &Display) {
@@ -124,15 +196,6 @@ impl TuiRenderer {
                 .borders(Borders::ALL),
         );
         f.render_widget(canvas, chunks[1]);
-    }
-
-    fn should_quit(timeout: Duration) -> anyhow::Result<bool> {
-        if event::poll(timeout).context("event poll failed")? {
-            if let Event::Key(key) = event::read().context("event read failed")? {
-                return Ok(KeyCode::Char('q') == key.code);
-            }
-        }
-        Ok(false)
     }
 
     fn reset_terminal() -> anyhow::Result<()> {
@@ -167,9 +230,12 @@ impl Drop for TuiRenderer {
     fn drop(&mut self) {
         // We can ignore failures as the `jh.join()` call below will propagate errors in the run
         // loop
-        let _ = self.stop_tx.send(());
+        self.stop_state.store(true, Ordering::Relaxed);
 
-        if let Some(jh) = self.jh.take() {
+        if let Some(jh) = self.render_jh.take() {
+            jh.join().unwrap().unwrap();
+        }
+        if let Some(jh) = self.event_jh.take() {
             jh.join().unwrap().unwrap();
         }
         let mut terminal = self.terminal.lock().unwrap();

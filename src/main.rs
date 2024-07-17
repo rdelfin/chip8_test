@@ -52,7 +52,10 @@ fn main() -> anyhow::Result<()> {
             break;
         }
 
-        emulated_chip8.step(KeyInput::default())?;
+        // Fetch key state
+        let key_input = renderer.current_key_state();
+
+        emulated_chip8.step(key_input)?;
         if last_draw.elapsed() > period_draw {
             last_draw = Instant::now();
             renderer.update_screen(&emulated_chip8.get_state().display)?;

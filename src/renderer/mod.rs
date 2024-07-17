@@ -1,4 +1,4 @@
-use crate::display::Display;
+use crate::{display::Display, emulator::KeyInput};
 use std::time::Duration;
 
 mod tui;
@@ -12,6 +12,9 @@ pub trait Renderer: Sized {
 
     /// Should return true if the renderer terminates early
     fn terminated(&self) -> bool;
+
+    /// Should return current state of keypad inputs
+    fn current_key_state(&self) -> KeyInput;
 
     /// Called every time there's an update to the screen. This being called doesn't necessarily
     /// mean that the data changed, just that we need to render to the screen.
