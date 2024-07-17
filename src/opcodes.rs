@@ -491,8 +491,11 @@ impl OpCodeReader for SkipIfKey {
         0xF0FF
     }
 
-    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {
-        // Currently does nothing
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        let reg = state.gp_register(opcode_data.x).0;
+        if state.is_pressed(reg) {
+            state.pc.0 += 2;
+        }
     }
 }
 
@@ -508,8 +511,11 @@ impl OpCodeReader for SkipIfNotKey {
         0xF0FF
     }
 
-    fn execute(&self, _state: &mut Chip8State, _opcode_data: OpCodeData) {
-        // Currently does nothing
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        let reg = state.gp_register(opcode_data.x).0;
+        if !state.is_pressed(reg) {
+            state.pc.0 += 2;
+        }
     }
 }
 
@@ -595,9 +601,11 @@ impl OpCodeReader for GetKey {
         0xF0FF
     }
 
-    fn execute(&self, state: &mut Chip8State, _opcode_data: OpCodeData) {
-        // Setting up to hang indefinitely
-        state.pc.0 -= 2;
+    fn execute(&self, state: &mut Chip8State, opcode_data: OpCodeData) {
+        let key = state.gp_register(opcode_data.x).0;
+        if !state.is_pressed(key) {
+            state.pc.0 -= 2;
+        }
     }
 }
 
@@ -1072,6 +1080,32 @@ mod test {
         assert_eq!(state, correct_state);
     }
 
+    #[test_case(0xA, 0x1, 0x100; "wrong_key_pressed")]
+    #[test_case(0xF, 0xF, 0x102; "key_pressed")]
+    fn test_skip_if_key(key_pressed: u8, key_checked: u8, expected_pc: u16) {
+        let skip_if_key_reader = SkipIfKey;
+        let mut state = Chip8State::new()
+            .with_pc(Address(0x100))
+            .with_key_pressed(key_pressed)
+            .with_register(Register(key_checked), 0x5);
+        let correct_state = state.clone().with_pc(Address(expected_pc));
+        skip_if_key_reader.execute(&mut state, OpCodeData::decode(0xE59E));
+        assert_eq!(state, correct_state);
+    }
+
+    #[test_case(0xA, 0x1, 0x102; "key_not_pressed")]
+    #[test_case(0xF, 0xF, 0x100; "key_pressed")]
+    fn test_skip_if_not_key(key_pressed: u8, key_checked: u8, expected_pc: u16) {
+        let skip_if_not_key_reader = SkipIfNotKey;
+        let mut state = Chip8State::new()
+            .with_pc(Address(0x100))
+            .with_key_pressed(key_pressed)
+            .with_register(Register(key_checked), 0x5);
+        let correct_state = state.clone().with_pc(Address(expected_pc));
+        skip_if_not_key_reader.execute(&mut state, OpCodeData::decode(0xE59E));
+        assert_eq!(state, correct_state);
+    }
+
     #[test]
     fn test_read_delay_timer() {
         let read_delay_timer_reader = ReadDelayTimer;
@@ -1114,6 +1148,19 @@ mod test {
         assert_eq!(state, correct_state);
     }
 
+    #[test_case(0xD, 0x2, 0xFE; "key_not_pressed")]
+    #[test_case(0x5, 0x5, 0x100; "key_pressed")]
+    fn test_get_key(pressed_key: u8, checked_key: u8, expected_pc: u16) {
+        let get_key_reader = GetKey;
+        let mut state = Chip8State::new()
+            .with_pc(Address(0x100))
+            .with_key_pressed(pressed_key)
+            .with_register(Register(checked_key), 0xD);
+        let correct_state = state.clone().with_pc(Address(expected_pc));
+        get_key_reader.execute(&mut state, OpCodeData::decode(0xFD0A));
+        assert_eq!(state, correct_state);
+    }
+
     #[test]
     fn test_read_font_character() {
         let read_font_character_reader = ReadFontCharacter;
@@ -1133,7 +1180,7 @@ mod test {
         let mut state = Chip8State::new()
             .with_register(Register(value), 0x8)
             .with_index_register(Address(address));
-        let mut correct_state = state.clone().with_memory_set(digits, Address(address));
+        let correct_state = state.clone().with_memory_set(digits, Address(address));
         decimal_decoding_reader.execute(&mut state, OpCodeData::decode(0xF833));
         assert_eq!(state, correct_state);
     }
@@ -1166,7 +1213,7 @@ mod test {
             .with_register(Register(0xDD), 0xD)
             .with_register(Register(0xEE), 0xE)
             .with_register(Register(0xFF), 0xF);
-        let mut correct_state = state
+        let correct_state = state
             .clone()
             .with_memory_set(&SAMPLE_DATA[..=usize::from(register)], Address(address));
         store_memory_reader.execute(
